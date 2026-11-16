@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>PDF Studio — merge, split, sign &amp; mark up PDFs locally</title>
+<meta name="description" content="A local-only PDF toolkit. Merge, split, sign and mark up PDFs entirely in your browser — no uploads, no servers.">
+<style>/*__STYLES__*/</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="app-header">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 3.5h11.2L26 10.3V26a2.5 2.5 0 0 1-2.5 2.5h-15A2.5 2.5 0 0 1 6 26V6a2.5 2.5 0 0 1 2-2.45Z" fill="currentColor" opacity=".13"/>
+        <path d="M8 3.5h11.2L26 10.3V26a2.5 2.5 0 0 1-2.5 2.5h-15A2.5 2.5 0 0 1 6 26V6a2.5 2.5 0 0 1 2-2.45Z" stroke="currentColor" stroke-width="1.6"/>
+        <path d="M18.8 3.8V10h6.2" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M10.5 23.5c2.2-2.6 4.2-6.6 5.3-9.9.4-1.2 1.4-1.6 2-.9.6.7.2 1.9-.6 2.4-1.5 1-4.4.6-6.2.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>
+    <span class="brand-text">
+      <strong>PDF Studio</strong>
+      <small>Merge · Split · Sign · Mark up</small>
+    </span>
+  </div>
+
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Tools">
+    <button type="button" class="tab is-active" data-tab="merge" role="tab" aria-selected="true" aria-controls="panel-merge" id="tab-merge">Merge</button>
+    <button type="button" class="tab" data-tab="split" role="tab" aria-selected="false" aria-controls="panel-split" id="tab-split" tabindex="-1">Split &amp; organise</button>
+    <button type="button" class="tab" data-tab="markup" role="tab" aria-selected="false" aria-controls="panel-markup" id="tab-markup" tabindex="-1">Sign &amp; mark up</button>
+    <button type="button" class="tab" data-tab="help" role="tab" aria-selected="false" aria-controls="panel-help" id="tab-help" tabindex="-1">Help</button>
+  </nav>
+
+  <span class="privacy-pill" title="All processing happens in this browser tab. Your files are never uploaded.">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2.2" stroke="currentColor" stroke-width="1.7"/><path d="M8.2 10V7.6a3.8 3.8 0 0 1 7.6 0V10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="15" r="1.25" fill="currentColor"/></svg>
+    100% local
+  </span>
+</header>
+
+<main id="main">
+  <!-- ============================== MERGE ============================== -->
+  <section class="panel" id="panel-merge" data-panel="merge" role="tabpanel" aria-labelledby="tab-merge">
+    <div class="panel-head">
+      <div>
+        <h1>Merge PDFs</h1>
+        <p>Combine several PDFs into one document. Put the files in the order you want them to appear.</p>
+      </div>
+    </div>
+
+    <div class="dropzone" id="merge-drop" tabindex="0" role="button" aria-label="Add PDF files to merge">
+      <span class="dz-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 15v3.2A1.8 1.8 0 0 0 6.3 20h11.4a1.8 1.8 0 0 0 1.8-1.8V15" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      </span>
+      <p class="dz-title">Drop PDF files here</p>
+      <p class="dz-sub">or <span class="link">browse your device</span> — files never leave this browser</p>
+      <input type="file" id="merge-input" accept=".pdf,application/pdf" multiple hidden>
+    </div>
+
+    <div class="card" id="merge-workspace" hidden>
+      <div class="card-head">
+        <div>
+          <h2>Files to merge</h2>
+          <p id="merge-summary" class="muted">No files yet</p>
+        </div>
+        <button type="button" class="btn ghost small" id="merge-add">+ Add files</button>
+      </div>
+
+      <ol class="file-list" id="merge-list"></ol>
+
+      <div class="form-row">
+        <label class="field grow">
+          <span>Output file name</span>
+          <input type="text" id="merge-name" value="merged.pdf" spellcheck="false" autocomplete="off">
+        </label>
+        <button type="button" class="btn ghost" id="merge-clear">Clear all</button>
+      </div>
+
+      <div class="actions">
+        <p class="muted small-print">Merging happens in this tab. Large files can take a few seconds.</p>
+        <button type="button" class="btn primary" id="merge-go">Merge &amp; download</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== SPLIT ============================== -->
+  <section class="panel" id="panel-split" data-panel="split" role="tabpanel" aria-labelledby="tab-split" hidden>
+    <div class="panel-head">
+      <div>
+        <h1>Split &amp; organise</h1>
+        <p>Delete, rotate and reorder pages, then save a copy, extract a selection or split the document into several files.</p>
+      </div>
+    </div>
+
+    <div class="dropzone" id="split-drop" tabindex="0" role="button" aria-label="Choose a PDF to split or organise">
+      <span class="dz-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3.5" width="11" height="15" rx="1.8" stroke="currentColor" stroke-width="1.7"/><path d="M9 7h5M9 10.5h5M9 14h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M17 7.5l3 3v8.7a1.8 1.8 0 0 1-1.8 1.8H9.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      </span>
+      <p class="dz-title">Drop a PDF here</p>
+      <p class="dz-sub">or <span class="link">browse your device</span> to split, reorder or rotate pages</p>
+      <input type="file" id="split-input" accept=".pdf,application/pdf" hidden>
+    </div>
+
+    <div id="split-workspace" hidden>
+      <div class="workspace-bar">
+        <span class="file-chip" id="split-file"></span>
+        <span class="spacer"></span>
+        <button type="button" class="btn icon" id="split-undo" title="Undo page change" disabled>↶</button>
+        <button type="button" class="btn icon" id="split-redo" title="Redo page change" disabled>↷</button>
+        <button type="button" class="btn ghost small" id="split-reset">Reset pages</button>
+        <button type="button" class="btn ghost small" id="split-close">Close</button>
+      </div>
+
+      <div class="split-layout">
+        <div class="card split-main">
+          <div class="card-head">
+            <div>
+              <h2>Pages</h2>
+              <p id="split-hint" class="muted">Click a page to select it. Shift-click to select a range.</p>
+            </div>
+            <div class="btn-row">
+              <button type="button" class="btn ghost small" id="split-select-all">Select all</button>
+              <button type="button" class="btn ghost small" id="split-select-none">Clear</button>
+            </div>
+          </div>
+
+          <div class="page-actions">
+            <button type="button" class="btn small" id="split-rotate-left" title="Rotate selected pages counter-clockwise">↺ Rotate left</button>
+            <button type="button" class="btn small" id="split-rotate-right" title="Rotate selected pages clockwise">↻ Rotate right</button>
+            <button type="button" class="btn small" id="split-move-left" title="Move selected pages earlier">← Move</button>
+            <button type="button" class="btn small" id="split-move-right" title="Move selected pages later">Move →</button>
+            <button type="button" class="btn small danger" id="split-delete" title="Remove selected pages">Delete</button>
+          </div>
+
+          <div id="split-grid" class="thumb-grid" aria-live="polite"></div>
+        </div>
+
+        <aside class="card split-side">
+          <h2>Save &amp; split</h2>
+
+          <div class="side-block">
+            <button type="button" class="btn primary wide" id="split-apply">Save changes</button>
+            <p class="muted">Applies deletions, rotations and the new page order to a copy of the PDF.</p>
+          </div>
+
+          <hr>
+
+          <div class="side-block">
+            <button type="button" class="btn wide" id="split-extract">Extract selected pages</button>
+            <p class="muted" id="split-selection-count">No pages selected</p>
+          </div>
+
+          <hr>
+
+          <div class="side-block">
+            <label class="field">
+              <span>Split every N pages</span>
+              <span class="inline-field">
+                <input type="number" id="split-every" min="1" value="1" inputmode="numeric">
+                <button type="button" class="btn small" id="split-every-go">Split</button>
+              </span>
+            </label>
+            <p class="muted">Creates a ZIP with one PDF per chunk, in the current page order.</p>
+          </div>
+
+          <hr>
+
+          <div class="side-block">
+            <label class="field">
+              <span>Split by ranges</span>
+              <input type="text" id="split-ranges" placeholder="1-3, 4-6, 7" spellcheck="false" autocomplete="off">
+            </label>
+            <button type="button" class="btn small" id="split-ranges-go">Create files</button>
+            <p class="muted">One PDF per comma-separated range, using the current page numbers.</p>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== MARKUP ============================== -->
+  <section class="panel panel-wide" id="panel-markup" data-panel="markup" role="tabpanel" aria-labelledby="tab-markup" hidden>
+    <div class="panel-head">
+      <div>
+        <h1>Sign &amp; mark up</h1>
+        <p>Highlight, draw, add notes and place a signature. Everything is flattened into a new PDF when you download.</p>
+      </div>
+    </div>
+
+    <div class="dropzone" id="markup-drop" tabindex="0" role="button" aria-label="Choose a PDF to sign or mark up">
+      <span class="dz-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M3.5 20.5h17" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M6 17c2.5-3.3 3.8-7.4 5.2-10.8.4-1 1.5-1.2 2-.4.5.8.3 2-.4 2.8-1.4 1.6-4.3 2-6.3 1.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.5 16.5c1.5-1.4 3.4-2.7 5-3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      </span>
+      <p class="dz-title">Drop a PDF here to sign or mark up</p>
+      <p class="dz-sub">or <span class="link">browse your device</span> — annotations stay in this browser</p>
+      <input type="file" id="markup-input" accept=".pdf,application/pdf" hidden>
+    </div>
+
+    <div id="markup-workspace" hidden>
+      <div class="markup-bar" role="toolbar" aria-label="Markup tools">
+        <div class="tool-group" id="tool-group">
+          <button type="button" class="tool is-active" data-tool="select" title="Select, move and resize (V)">Select</button>
+          <button type="button" class="tool" data-tool="highlight" title="Highlight an area (H)">Highlight</button>
+          <button type="button" class="tool" data-tool="ink" title="Draw freehand (P)">Draw</button>
+          <button type="button" class="tool" data-tool="text" title="Add text (T)">Text</button>
+          <button type="button" class="tool" data-tool="comment" title="Add a comment box (C)">Comment</button>
+          <button type="button" class="tool" data-tool="rect" title="Draw a rectangle (R)">Rectangle</button>
+          <button type="button" class="tool" data-tool="arrow" title="Draw an arrow (A)">Arrow</button>
+          <button type="button" class="tool" data-tool="mask" title="Cover an area with a black box (M)">Black box</button>
+          <button type="button" class="tool tool-sign" data-tool="signature" title="Place a signature (S)">Signature</button>
+        </div>
+
+        <div class="tool-group">
+          <label class="color-field" title="Colour">
+            <input type="color" id="ann-color" value="#ffd400" aria-label="Annotation colour">
+            <span>Colour</span>
+          </label>
+          <label class="range-field" title="Stroke / text size">
+            <span id="size-label">Size</span>
+            <input type="range" id="ann-size" min="1" max="40" step="1" value="2">
+          </label>
+          <label class="range-field" title="Opacity">
+            <span>Opacity</span>
+            <input type="range" id="ann-opacity" min="10" max="100" step="5" value="35">
+          </label>
+        </div>
+
+        <div class="tool-group">
+          <button type="button" class="btn icon" id="markup-undo" title="Undo (Ctrl/Cmd+Z)" disabled>↶</button>
+          <button type="button" class="btn icon" id="markup-redo" title="Redo (Ctrl/Cmd+Shift+Z)" disabled>↷</button>
+          <button type="button" class="btn icon" id="markup-delete" title="Delete selected annotation (Delete)" disabled>Delete</button>
+          <span class="divider"></span>
+          <button type="button" class="btn icon" id="zoom-out" title="Zoom out">−</button>
+          <span class="zoom-label" id="zoom-label">100%</span>
+          <button type="button" class="btn icon" id="zoom-in" title="Zoom in">+</button>
+          <label class="zoom-field" title="Page width / zoom">
+            <span>Width</span>
+            <select id="page-width" aria-label="Page width">
+              <option value="fit-width">Fit width</option>
+              <option value="fit-page">Fit page</option>
+              <option value="50">50%</option>
+              <option value="75">75%</option>
+              <option value="100">100%</option>
+              <option value="125">125%</option>
+              <option value="150">150%</option>
+              <option value="200">200%</option>
+              <option value="250">250%</option>
+              <option value="300">300%</option>
+              <option value="custom" hidden>Custom</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="tool-group grow end">
+          <button type="button" class="btn ghost small" id="markup-open">Open another PDF</button>
+          <button type="button" class="btn primary" id="markup-download">Download PDF</button>
+        </div>
+      </div>
+
+      <div class="markup-hint" id="markup-hint">
+        Tip: choose <strong>Highlight</strong> and drag across text, or <strong>Signature</strong> and drag a box to place your signature.
+        Press <kbd>V</kbd> to return to the select tool.
+      </div>
+      <div class="markup-meta" id="markup-meta"></div>
+
+      <div class="page-scroll" id="page-scroll">
+        <div class="pages" id="pages"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== HELP ============================== -->
+  <section class="panel" id="panel-help" data-panel="help" role="tabpanel" aria-labelledby="tab-help" hidden>
+    <div class="panel-head">
+      <div>
+        <h1>How it works</h1>
+        <p>PDF Studio is a self-contained web page. There is no server, no account and no analytics.</p>
+      </div>
+    </div>
+
+    <div class="help-grid">
+      <article class="card">
+        <h2>Privacy</h2>
+        <p>Every file you open is read directly by this browser tab. Merging, splitting, signing and marking up all happen locally using JavaScript. Nothing is uploaded, and the page makes no network requests.</p>
+        <p class="muted">You can disconnect from the network after the page has loaded and everything will keep working.</p>
+      </article>
+
+      <article class="card">
+        <h2>Merge</h2>
+        <p>Add two or more PDFs, reorder them with the arrows, then choose <strong>Merge &amp; download</strong>. Page content, sizes, rotations and page-level annotations are preserved. Document outlines/bookmarks and interactive form fields may not carry over.</p>
+      </article>
+
+      <article class="card">
+        <h2>Split &amp; organise</h2>
+        <p>Select pages by clicking their thumbnails. Rotate, move or delete the selection, then save the changes. You can extract just the selected pages, split every <em>N</em> pages, or create one PDF per custom range.</p>
+        <p class="muted">Splitting into more than one output produces a ZIP file. Pages are copied rather than re-rendered, so the original quality is kept.</p>
+      </article>
+
+      <article class="card">
+        <h2>Sign &amp; mark up</h2>
+        <p>Pick a tool and interact with the page:</p>
+        <ul>
+          <li><strong>Highlight</strong>, <strong>Rectangle</strong>, <strong>Arrow</strong> and <strong>Black box</strong> — drag to draw.</li>
+          <li><strong>Draw</strong> — freehand ink.</li>
+          <li><strong>Text</strong> and <strong>Comment</strong> — click a page, type, then add.</li>
+          <li><strong>Signature</strong> — draw, type or upload a signature, then drag a box on the page.</li>
+          <li><strong>Select</strong> — click an annotation to move it; drag the bottom-right handle to resize shapes and signatures. Press <kbd>Delete</kbd> to remove it.</li>
+        </ul>
+        <p>Use the <strong>Width</strong> menu and the zoom buttons above the document to switch between fit width, fit page and fixed zoom levels. The page area expands to use the available window when a PDF is open.</p>
+        <p>On download, annotations are drawn into the PDF and flattened, so they display in any PDF reader.</p>
+      </article>
+
+      <article class="card">
+        <h2>Keyboard shortcuts</h2>
+        <ul class="shortcut-list">
+          <li><kbd>V</kbd> Select</li>
+          <li><kbd>H</kbd> Highlight</li>
+          <li><kbd>P</kbd> Draw</li>
+          <li><kbd>T</kbd> Text</li>
+          <li><kbd>C</kbd> Comment</li>
+          <li><kbd>R</kbd> Rectangle</li>
+          <li><kbd>A</kbd> Arrow</li>
+          <li><kbd>M</kbd> Black box</li>
+          <li><kbd>S</kbd> Signature</li>
+          <li><kbd>Ctrl/Cmd</kbd> + <kbd>Z</kbd> Undo</li>
+          <li><kbd>Ctrl/Cmd</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> Redo</li>
+          <li><kbd>Delete</kbd> Remove selection</li>
+          <li><kbd>+</kbd> / <kbd>−</kbd> Zoom</li>
+          <li><kbd>0</kbd> Fit page</li>
+          <li><kbd>Esc</kbd> Cancel / deselect</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Good to know</h2>
+        <ul>
+          <li>Password-protected PDFs are not supported. Remove the password first, then edit the file.</li>
+          <li>Text annotations use a built-in PDF font that covers Western European characters. Other scripts may be replaced with <code>?</code>; use an image-based signature for names in other scripts.</li>
+          <li>The <strong>Black box</strong> tool visually covers content; it is <em>not</em> a secure redaction. The text underneath is still in the file.</li>
+          <li>Signatures placed here are visual e-signatures. They are not cryptographic digital signatures and do not include a certificate.</li>
+          <li>Very large PDFs or very long pages can take a moment to render. Nothing is lost while the page is working.</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <h2>Hosting it in Microsoft 365</h2>
+        <ol>
+          <li>Upload <code>pdf-studio.html</code> to a SharePoint document library (for example <em>Site Assets</em>).</li>
+          <li>Share the file with the people who need it. Because it is a single HTML file with all libraries inlined, no build step or server is required.</li>
+          <li>For a polished experience, host the file on Azure Static Web Apps (or any static host) and add it to a SharePoint page with the <strong>Embed</strong> web part, or to a Teams tab.</li>
+        </ol>
+        <p class="muted">Some tenants download HTML files instead of opening them in the browser, depending on library settings. In that case, download the file and double-click it — it works offline from your desktop too.</p>
+      </article>
+    </div>
+
+    <div class="card about-card">
+      <p><strong>PDF Studio</strong> · built with <a href="https://mozilla.github.io/pdf.js/" target="_blank" rel="noreferrer">PDF.js</a>, <a href="https://pdf-lib.js.org/" target="_blank" rel="noreferrer">pdf-lib</a> and <a href="https://github.com/101arrowz/fflate" target="_blank" rel="noreferrer">fflate</a>. The libraries are bundled inside this file; no CDN or network access is used at runtime.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="app-footer">
+  <span>PDF Studio runs entirely in your browser. No files leave this device.</span>
+  <span class="dot" aria-hidden="true">·</span>
+  <span>Single-file build</span>
+</footer>
+
+<!-- ============================== SIGNATURE MODAL ============================== -->
+<div class="modal-backdrop" id="sig-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="sig-title">
+    <div class="modal-head">
+      <h2 id="sig-title">Create a signature</h2>
+      <button type="button" class="btn icon close" id="sig-close" aria-label="Close">×</button>
+    </div>
+
+    <div class="segmented" role="tablist" aria-label="Signature method">
+      <button type="button" class="segment is-active" data-sig-mode="draw" role="tab" aria-selected="true">Draw</button>
+      <button type="button" class="segment" data-sig-mode="type" role="tab" aria-selected="false">Type</button>
+      <button type="button" class="segment" data-sig-mode="upload" role="tab" aria-selected="false">Upload</button>
+    </div>
+
+    <div class="sig-stage">
+      <canvas id="sig-pad" width="640" height="240" aria-label="Signature drawing area"></canvas>
+      <div class="sig-type-wrap" id="sig-type-wrap" hidden>
+        <input type="text" id="sig-type-name" placeholder="Type your name" aria-label="Name to use as signature" autocomplete="off" spellcheck="false">
+        <select id="sig-font" aria-label="Signature font">
+          <option value="cursive-1">Flowing script</option>
+          <option value="cursive-2">Formal script</option>
+          <option value="cursive-3">Handwritten</option>
+        </select>
+      </div>
+      <div class="sig-upload-wrap" id="sig-upload-wrap" hidden>
+        <p class="muted">Choose a PNG or JPG of your signature. Light backgrounds can be made transparent.</p>
+        <input type="file" id="sig-upload" accept="image/png,image/jpeg,.png,.jpg,.jpeg">
+        <label class="checkline"><input type="checkbox" id="sig-clean" checked> Remove light background</label>
+      </div>
+    </div>
+
+    <div class="sig-options">
+      <label class="field grow">
+        <span>Name printed under the signature (optional)</span>
+        <input type="text" id="sig-name" placeholder="e.g. Alex Morgan" autocomplete="off">
+      </label>
+      <label class="checkline"><input type="checkbox" id="sig-date" checked> Include date</label>
+    </div>
+
+    <div class="sig-saved" id="sig-saved" hidden>
+      <span class="muted small-print">Reuse a signature</span>
+      <div class="sig-saved-list" id="sig-saved-list"></div>
+    </div>
+
+    <p class="muted small-print">This is a visual signature placed on the PDF. It is not a certificate-based digital signature.</p>
+
+    <div class="modal-actions">
+      <button type="button" class="btn ghost" id="sig-clear">Clear</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" id="sig-cancel">Cancel</button>
+      <button type="button" class="btn primary" id="sig-save">Use signature</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== TEXT EDITOR ============================== -->
+<div class="text-editor" id="text-editor" hidden>
+  <textarea id="text-editor-input" rows="3" placeholder="Type here…" aria-label="Annotation text"></textarea>
+  <div class="text-editor-actions">
+    <span class="muted small-print" id="text-editor-hint">Ctrl/Cmd + Enter to add</span>
+    <button type="button" class="btn small" id="text-editor-cancel">Cancel</button>
+    <button type="button" class="btn small primary" id="text-editor-ok">Add</button>
+  </div>
+</div>
+
+
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+<script>/*__SCRIPT__*/</script>
+</body>
+</html>

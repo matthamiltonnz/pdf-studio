@@ -1,0 +1,25 @@
+{
+  "name": "pdf-studio",
+  "version": "1.0.0",
+  "description": "Local-only PDF editor (merge, split, sign, markup) built as a single HTML file",
+  "scripts": {
+    "test": "node tests/e2e.mjs",
+    "build": "node scripts/build.mjs",
+    "preview": "node scripts/serve.mjs",
+    "fixtures": "node tests/make-fixtures.mjs",
+    "pretest": "node scripts/build.mjs"
+  },
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "fflate": "^0.8.3",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^3.11.174",
+    "playwright": "^1.65.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
