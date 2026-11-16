@@ -325,6 +325,31 @@ main { flex: 1; width: 100%; padding: clamp(1.1rem, 3vw, 2.4rem); }
   transform: scale(1.005);
   box-shadow: var(--shadow);
 }
+#panel-documents { position: relative; }
+.document-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 2px dashed var(--accent);
+  border-radius: 14px;
+  pointer-events: none;
+}
+.document-drop-overlay[hidden] { display: none; }
+.document-drop-card {
+  display: grid;
+  gap: .35rem;
+  padding: 1.2rem 1.5rem;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+.document-drop-card strong { font-size: 1rem; }
+.document-drop-card span { color: var(--muted); font-size: .82rem; }
 .dz-icon {
   display: grid;
   place-items: center;

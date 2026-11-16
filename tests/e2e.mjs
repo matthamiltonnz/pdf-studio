@@ -187,6 +187,27 @@ await page.waitForFunction(() => document.querySelectorAll('.thumb').length === 
 assert.match(await page.locator('#split-file').textContent(), /7 pages/);
 console.log('✓ documents add more PDFs');
 
+// Drag and drop another PDF onto the Documents panel.
+const betaBase64 = (await readFile(path.join(fixtures, 'beta.pdf'))).toString('base64');
+const dropState = await page.evaluate(({ b64, name }) => {
+  const bytes = Uint8Array.from(atob(b64), (char) => char.charCodeAt(0));
+  const file = new File([bytes], name, { type: 'application/pdf' });
+  const dataTransfer = new DataTransfer();
+  dataTransfer.items.add(file);
+  const panel = document.querySelector('#panel-documents');
+  const overlay = document.querySelector('#documents-drop-overlay');
+  panel.dispatchEvent(new DragEvent('dragenter', { bubbles: true, cancelable: true, dataTransfer }));
+  const overlayVisible = Boolean(overlay && !overlay.hidden);
+  panel.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer }));
+  panel.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
+  return { overlayVisible, overlayHidden: Boolean(overlay && overlay.hidden) };
+}, { b64: betaBase64, name: 'beta.pdf' });
+assert.equal(dropState.overlayVisible, true, 'the drop overlay should appear');
+assert.equal(dropState.overlayHidden, true, 'the drop overlay should hide after dropping');
+await page.waitForFunction(() => document.querySelectorAll('.thumb').length === 9, null, { timeout: 20000 });
+assert.match(await page.locator('#split-file').textContent(), /9 pages/);
+console.log('✓ drag and drop PDFs');
+
 // ----------------------------- Split -----------------------------
 await page.goto(`${baseUrl}/pdf-studio.html`, { waitUntil: 'load' });
 await page.setInputFiles('#split-input', path.join(fixtures, 'alpha.pdf'));

@@ -13,7 +13,7 @@ A local-only PDF editor that ships as **one self-contained HTML file**. Organise
 
 | Tool | What it does |
 | --- | --- |
-| **Documents** | Add one or more PDFs into a single page tray. Files are merged automatically, and **Add PDFs** appends more at any time. |
+| **Documents** | Add one or more PDFs into a single page tray. Files are merged automatically; drag and drop more PDFs onto the page tray or use **Add PDFs** to append them at any time. |
 | **Organise & export** | Thumbnail view with multi-select. Rotate, reorder and delete pages. Open any page with **Mark up**, then download the whole document, extract selected pages, split every *N* pages, or create one PDF per range (`1-3, 4-6, 7`). Multi-file outputs are zipped. |
 | **Mark up a page** | Highlight, freehand ink, text, comment boxes, rectangles, arrows, visual boxes, secure redactions and signatures. Select annotations to move/resize, undo/redo, zoom and export. **← Documents** saves the markup back to the page tray. |
 

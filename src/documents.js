@@ -37,27 +37,50 @@ export function initDocuments() {
     }
   });
 
-  let dragDepth = 0;
-  drop.addEventListener('dragenter', (event) => {
+  const panel = $('#panel-documents');
+  const overlay = $('#documents-drop-overlay');
+  const hasFiles = (event) => {
+    const data = event.dataTransfer;
+    if (!data) return false;
+    return Array.from(data.types || []).includes('Files')
+      || Boolean(data.files && data.files.length)
+      || Array.from(data.items || []).some((item) => item.kind === 'file');
+  };
+
+  const hideDrop = () => {
+    overlay.hidden = true;
+    drop.classList.remove('is-dragover');
+  };
+
+  panel.addEventListener('dragenter', (event) => {
+    if (!hasFiles(event)) return;
     event.preventDefault();
-    dragDepth += 1;
+    overlay.querySelector('span').textContent = state.bytes
+      ? 'They will be appended to this document.'
+      : 'Drop one or more PDFs to begin.';
+    overlay.hidden = false;
     drop.classList.add('is-dragover');
   });
-  drop.addEventListener('dragover', (event) => {
+  panel.addEventListener('dragover', (event) => {
+    if (!hasFiles(event)) return;
     event.preventDefault();
     if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
   });
-  drop.addEventListener('dragleave', () => {
-    dragDepth = Math.max(0, dragDepth - 1);
-    if (dragDepth === 0) drop.classList.remove('is-dragover');
+  panel.addEventListener('dragleave', (event) => {
+    if (event.relatedTarget && panel.contains(event.relatedTarget)) return;
+    hideDrop();
   });
-  drop.addEventListener('drop', async (event) => {
+  panel.addEventListener('drop', async (event) => {
+    if (!event.dataTransfer?.files?.length) return;
     event.preventDefault();
-    dragDepth = 0;
-    drop.classList.remove('is-dragover');
-    const files = event.dataTransfer?.files;
-    if (files && files.length) await addFiles(files);
+    const files = event.dataTransfer.files;
+    hideDrop();
+    await addFiles(files);
   });
+  window.addEventListener('drop', (event) => {
+    if (event.dataTransfer?.files?.length) event.preventDefault();
+  });
+  window.addEventListener('dragend', hideDrop);
 
   input.addEventListener('change', async () => {
     const files = Array.from(input.files || []);
