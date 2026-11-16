@@ -170,12 +170,22 @@ export function initMarkup() {
 }
 
 
-export async function openMarkupDocument({ name, bytes, page = 1, onDone } = {}) {
+function cloneAnnotationMap(source) {
+  const out = {};
+  if (!source) return out;
+  for (const [page, list] of Object.entries(source)) {
+    if (!Array.isArray(list) || !list.length) continue;
+    out[Number(page)] = JSON.parse(JSON.stringify(list));
+  }
+  return out;
+}
+
+export async function openMarkupDocument({ name, bytes, page = 1, annotations = {}, onDone } = {}) {
   if (!bytes) return;
   try {
     await inspectPdf(bytes);
     const pdfjsDoc = await openWithPdfjs(bytes);
-    await mountDocument(name || 'document.pdf', bytes, pdfjsDoc);
+    await mountDocument(name || 'document.pdf', bytes, pdfjsDoc, annotations);
     state.onDone = onDone || null;
     const target = state.pageViews[Math.max(0, page - 1)];
     if (target) {
@@ -215,7 +225,7 @@ async function openFile(file) {
   }
 }
 
-async function mountDocument(name, bytes, pdfjsDoc) {
+async function mountDocument(name, bytes, pdfjsDoc, annotations = {}) {
   const count = pdfjsDoc.numPages;
   const pageProxies = [];
   for (let i = 1; i <= count; i += 1) pageProxies.push(await pdfjsDoc.getPage(i));
@@ -249,7 +259,9 @@ async function mountDocument(name, bytes, pdfjsDoc) {
   state.name = name;
   state.bytes = bytes;
   state.pdfjsDoc = pdfjsDoc;
-  state.annotations = {};
+  state.annotations = cloneAnnotationMap(annotations);
+  state.history = [];
+  state.historyIndex = -1;
   state.embeddedAnnotations = embeddedAnnotations;
   state.selectedId = null;
   state.selectedPage = null;
@@ -1239,23 +1251,29 @@ async function finishMarkup() {
 
   state.finishing = true;
   try {
-    let bytes = null;
+    const editable = $('#editable-annotations').checked;
+    const annotations = editable
+      ? Array.from({ length: state.pageViews.length }, (_, index) => (
+          state.annotations[index] ? JSON.parse(JSON.stringify(state.annotations[index])) : []
+        ))
+      : [];
+    let redactedPages = {};
+    let bytes = state.bytes;
     if (count > 0) {
       await withBusy($('#markup-back'), async () => {
-        let redactedPages = {};
         if (redactions > 0) {
           toast('Rasterising redacted pages…', 'info', 2400);
           redactedPages = await buildRedactedPages();
         }
         bytes = await exportAnnotatedPdf(state.bytes, state.annotations, {
-          flatten: $('#editable-annotations').checked === false,
+          flatten: !editable,
           redactedPages,
           title: `${baseName(state.name)} (edited)`,
         });
       });
     }
     state.onDone = null;
-    await done(bytes);
+    await done(bytes, { annotations, flattened: !editable && count > 0, redactedPages });
   } catch (err) {
     toast(`Could not save the page markup: ${errorMessage(err)}`, 'error', 7000);
   } finally {

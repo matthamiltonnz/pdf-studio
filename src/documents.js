@@ -150,6 +150,10 @@ async function addFiles(files) {
       name: file.name || 'document.pdf',
     })));
 
+    const previousPageStates = state.pages.map((page) => ({
+      annotations: page.annotations || [],
+      managed: Boolean(page.annotationsManaged),
+    }));
     let bytes;
     let name;
     if (state.bytes && state.pages.length) {
@@ -164,7 +168,7 @@ async function addFiles(files) {
       name = `${baseName(entries[0].name)} + ${entries.length - 1} more.pdf`;
     }
 
-    await loadDocument(name, bytes);
+    await loadDocument(name, bytes, previousPageStates);
     toast(
       incoming.length === 1 ? `Added ${incoming[0].name}.` : `Added ${incoming.length} PDFs.`,
       'success',
@@ -174,7 +178,15 @@ async function addFiles(files) {
   }
 }
 
-async function loadDocument(name, bytes) {
+function normalizePageAnnotations(entry) {
+  if (Array.isArray(entry)) return { annotations: entry, managed: true };
+  if (entry && Array.isArray(entry.annotations)) {
+    return { annotations: entry.annotations, managed: entry.managed !== false };
+  }
+  return { annotations: [], managed: false };
+}
+
+async function loadDocument(name, bytes, pageStates = []) {
   const info = await inspectPdf(bytes);
   const rotations = await getPageRotations(bytes);
   const pdfjsDoc = await openWithPdfjs(bytes);
@@ -187,11 +199,18 @@ async function loadDocument(name, bytes) {
   state.pageCount = info.pageCount;
   state.pdfjsDoc = pdfjsDoc;
   state.baseRotations = rotations;
-  state.pages = rotations.map((rotation, index) => ({
-    uid: `p${index}_${Math.random().toString(36).slice(2, 7)}`,
-    src: index,
-    rotation,
-  }));
+  state.pages = rotations.map((rotation, index) => {
+    const pageState = normalizePageAnnotations(pageStates[index]);
+    return {
+      uid: `p${index}_${Math.random().toString(36).slice(2, 7)}`,
+      src: index,
+      rotation,
+      annotations: pageState.annotations.length
+        ? JSON.parse(JSON.stringify(pageState.annotations))
+        : [],
+      annotationsManaged: pageState.managed,
+    };
+  });
   state.selected = new Set();
   state.lastClicked = null;
   state.history = [];
@@ -224,16 +243,18 @@ async function openEditor(index, button) {
   const base = baseName(state.name);
   try {
     await withBusy(button, async () => {
-      const bytes = await buildPdfFromPages(state.bytes, state.pages, base);
+      const annotations = state.pages.map((item) => item.annotations || []);
+      const bytes = await buildPdfFromPages(state.bytes, state.pages, base, { stripStudioAnnotations: true });
       await openMarkupDocument({
         name: `${base}.pdf`,
         bytes,
         page: index + 1,
-        onDone: async (annotated) => {
+        annotations,
+        onDone: async (annotated, meta = {}) => {
           try {
             if (annotated) {
-              await loadDocument(state.name, annotated);
-              toast('Markup saved to the document.', 'success');
+              await loadDocument(state.name, annotated, meta.annotations || []);
+              toast(meta.flattened ? 'Markup flattened into the document.' : 'Markup saved to the document.', 'success');
             }
           } finally {
             window.dispatchEvent(new CustomEvent('pdfstudio:show-tab', { detail: 'documents' }));
@@ -269,11 +290,17 @@ function closeFile() {
 
 function resetPages() {
   if (!state.bytes) return;
-  state.pages = state.baseRotations.map((rotation, index) => ({
-    uid: `p${index}_${Math.random().toString(36).slice(2, 7)}`,
-    src: index,
-    rotation,
-  }));
+  const previousBySrc = new Map(state.pages.map((page) => [page.src, page]));
+  state.pages = state.baseRotations.map((rotation, index) => {
+    const previous = previousBySrc.get(index);
+    return {
+      uid: `p${index}_${Math.random().toString(36).slice(2, 7)}`,
+      src: index,
+      rotation,
+      annotations: previous?.annotations || [],
+      annotationsManaged: Boolean(previous?.annotationsManaged),
+    };
+  });
   state.selected.clear();
   state.lastClicked = null;
   recordHistory();

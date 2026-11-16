@@ -108,7 +108,7 @@ If you want the editor as a native web part, wrap the built HTML/JS in an SPFx w
 - **Password-protected / encrypted PDFs are not supported.** Remove the password first. The app shows a clear error rather than producing a broken file.
 - **Visual signatures only.** Signatures are flattened images on the page. They are not PAdES/certificate-based digital signatures and do not prove the signer’s identity cryptographically.
 - **Redaction is destructive.** The Redact tool rasterises every page containing a redaction (about 2× page resolution, ~144 DPI) and rebuilds it on export, so the original text and objects on that page are not included in the downloaded file. Covered content is irrecoverable from that copy; links and form fields on redacted pages are flattened, and document outlines may be lost. Keep the original if you may need the source content.
-- **Markup saved back to Documents is embedded.** After choosing **← Documents**, the working PDF contains native annotation objects. They render and export, but reopening the page in PDF Studio treats them as read-only embedded annotations (other PDF readers can still list and edit them).
+- **Markup saved back to Documents stays editable in the current session.** Choosing **← Documents** writes native annotation objects into the working PDF and keeps an editable overlay in the Documents tray; reopening the page from that tray restores the annotations for selection and editing. Downloading and re-importing the PDF, or reloading the browser tab, treats them as embedded/read-only annotations (other PDF readers can still list and edit them).
 
 - **Text annotation font** is the built-in PDF Helvetica (WinAnsi). Western European characters are supported; other scripts are replaced with `?`. Use a drawn/typed/uploaded signature image for names in other scripts.
 - **Annotations are real PDF annotation objects by default** (highlight, square, ink, line, free text, stamp/signature), so other PDF apps can list and edit them. Uncheck **Editable annotations** to flatten them instead. Pages with redactions are always rasterised.
@@ -155,6 +155,7 @@ dist/
 - opening **Mark up** from a specific page and saving annotations back to the page tray;
 - split rotate → save, undo/redo, reorder, delete/undo, extract, split-every-N and range splitting (including ZIP contents);
 - markup drawing, text with font family/style/size controls, signatures, undo/redo, native annotation export and flattened export;
+- saved markup reopened from the Documents tray stays selectable and editable, including deleting it and re-exporting;
 - secure redaction: rasterised output, no annotation object, no extractable page text, other pages intact;
 - visual box: native Square annotation in the chosen colour while page text remains extractable;
 - page width/zoom presets (fit width, fit page, fixed percentages, custom zoom);

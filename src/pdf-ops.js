@@ -18,6 +18,29 @@ function copyPageAnnotations(sourcePage, targetPage, sourceDoc, targetDoc) {
     // Keep the page even if an unusual annotation object cannot be copied.
   }
 }
+function studioAnnotationId(dict) {
+  const nm = dict?.get?.(PDFName.of('NM'));
+  if (!nm || typeof nm.decodeText !== 'function') return '';
+  try { return nm.decodeText(); } catch { return ''; }
+}
+
+/** Remove PDF Studio's current overlay annotations before reopening the editable overlay. */
+function stripStudioAnnotations(doc, pageRefs) {
+  doc.getPages().forEach((page, pageIndex) => {
+    const ids = new Set(
+      (pageRefs[pageIndex]?.annotations || [])
+        .map((annotation) => annotation.id)
+        .filter(Boolean),
+    );
+    if (!ids.size) return;
+    const annots = page.node.Annots();
+    if (!annots) return;
+    for (let index = annots.size() - 1; index >= 0; index -= 1) {
+      const dict = doc.context.lookup(annots.get(index));
+      if (ids.has(studioAnnotationId(dict))) annots.remove(index);
+    }
+  });
+}
 
 export async function inspectPdf(bytes) {
   if (!PDF_MAGIC.test(new TextDecoder('latin1').decode(bytes.slice(0, 1024)))) {
@@ -58,7 +81,7 @@ export async function mergePdfBuffers(entries, title) {
   return out.save();
 }
 
-export async function buildPdfFromPages(sourceBytes, pageRefs, title) {
+export async function buildPdfFromPages(sourceBytes, pageRefs, title, options = {}) {
   const src = await PDFDocument.load(sourceBytes.slice(), { updateMetadata: false });
   const out = await PDFDocument.create();
   const sourceIndices = pageRefs.map((ref) => ref.src);
@@ -68,6 +91,7 @@ export async function buildPdfFromPages(sourceBytes, pageRefs, title) {
     page.setRotation(degrees(normalizeRotation(pageRefs[index].rotation)));
     out.addPage(page);
   });
+  if (options.stripStudioAnnotations) stripStudioAnnotations(out, pageRefs);
   finalizeDoc(out, title);
   return out.save();
 }

@@ -118,7 +118,7 @@ async function waitForMarkup(name) {
 async function openMarkupFile(file, { confirm = false } = {}) {
   if (await page.locator('#panel-markup').isVisible().catch(() => false)) {
     await page.click('#markup-back');
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(1000);
     if (await page.locator('#app-confirm').isVisible().catch(() => false)) {
       await page.click('#app-confirm-ok');
     }
@@ -582,6 +582,29 @@ assert.ok(
   'markup saved from the editor should survive returning to documents',
 );
 console.log('✓ save markup and return to documents');
+
+// Saved annotations should come back as editable objects, not embedded duplicates.
+await page.locator('.thumb-edit').first().click();
+await waitForMarkup('alpha.pdf');
+await page.waitForFunction(() => document.querySelector('#markup-meta').textContent.includes('1 annotation'));
+await page.click('[data-tool="select"]');
+box = await overlayBox(0);
+await page.mouse.click(box.x + box.width * 0.35, box.y + box.height * 0.4);
+await page.waitForFunction(() => !document.querySelector('#markup-delete').disabled);
+await page.click('#markup-delete');
+await page.waitForFunction(() => document.querySelector('#markup-meta').textContent.includes('0 annotations'));
+await page.click('#markup-back');
+await page.waitForSelector('#panel-documents:not([hidden])', { timeout: 20000 });
+await page.waitForFunction(() => document.querySelectorAll('.thumb').length === 3, null, { timeout: 20000 });
+const clearedPath = await saveDownload(() => page.click('#split-apply'), 'alpha-cleared.pdf');
+const clearedAnnotations = await annotationSummary(clearedPath);
+assert.equal(
+  clearedAnnotations[0].filter((ann) => ann.subtype === '/Highlight').length,
+  0,
+  'deleting a reopened annotation should remove it from the document',
+);
+console.log('✓ saved annotations stay editable after returning to Documents');
+
 
 
 // ----------------------------- Open a specific page -----------------------------
