@@ -417,6 +417,7 @@ await waitForMarkup('alpha.pdf');
 await setPageWidth('fit-page');
 box = await overlayBox(0);
 await page.click('[data-tool="mask"]');
+assert.equal(await page.locator('#ann-color').isDisabled(), true, 'redaction colour must stay locked to black');
 await page.mouse.move(box.x + box.width * 0.05, box.y + box.height * 0.3);
 await page.mouse.down();
 await page.mouse.move(box.x + box.width * 0.7, box.y + box.height * 0.52, { steps: 8 });
@@ -458,12 +459,17 @@ const redactedPixel = await samplePage(0.35, 0.4);
 assert.ok(redactedPixel[0] < 30 && redactedPixel[1] < 30 && redactedPixel[2] < 30, `redaction pixel was ${redactedPixel}`);
 console.log('✓ redacted page renders');
 
-// ----------------------------- Visual black box (text remains) -----------------------------
+// ----------------------------- Visual box (colour, text remains) -----------------------------
 await openMarkupFile(path.join(fixtures, 'alpha.pdf'));
 await waitForMarkup('alpha.pdf');
 await setPageWidth('fit-page');
 box = await overlayBox(0);
 await page.click('[data-tool="blackbox"]');
+assert.equal(await page.locator('#ann-color').isEnabled(), true, 'box colour picker should be enabled');
+await page.locator('#ann-color').evaluate((el) => {
+  el.value = '#e11d48';
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+});
 await page.mouse.move(box.x + box.width * 0.05, box.y + box.height * 0.3);
 await page.mouse.down();
 await page.mouse.move(box.x + box.width * 0.7, box.y + box.height * 0.52, { steps: 8 });
@@ -482,8 +488,8 @@ await openMarkupFile(blackboxPath, { confirm: true });
 await waitForMarkup('alpha-blackbox.pdf');
 await setPageWidth('fit-page');
 const blackboxPixel = await samplePage(0.35, 0.4);
-assert.ok(blackboxPixel[0] < 60 && blackboxPixel[1] < 60 && blackboxPixel[2] < 60, `black box pixel was ${blackboxPixel}`);
-console.log('✓ black box covers visually while text remains');
+assert.ok(blackboxPixel[0] > 150 && blackboxPixel[1] < 100 && blackboxPixel[2] < 120, `box pixel was ${blackboxPixel}`);
+console.log('✓ coloured box covers visually while text remains');
 
 // ----------------------------- Offline file:// -----------------------------
 const offline = await context.newPage();

@@ -491,7 +491,7 @@ function updateMeta() {
   if (blackboxes > 0) {
     const warn = document.createElement('span');
     warn.className = 'chip warn';
-    warn.textContent = `${blackboxes} black box${blackboxes === 1 ? '' : 'es'} · text remains available`;
+    warn.textContent = `${blackboxes} box${blackboxes === 1 ? '' : 'es'} · text remains available`;
     host.appendChild(warn);
   }
   if (state.embeddedAnnotations > 0) {
@@ -518,14 +518,15 @@ function syncControls() {
   const isText = TEXT_TOOLS.has(state.tool);
   const isSelect = state.tool === 'select';
   const isSignature = state.tool === 'signature';
-  const locked = isSelect || isSignature || state.tool === 'mask' || state.tool === 'blackbox';
+  const colorLocked = isSelect || isSignature || state.tool === 'mask';
+  const sizeLocked = colorLocked || state.tool === 'blackbox';
   $('#size-label').textContent = isText ? 'Font size' : 'Size';
   $('#ann-size').value = String(isText ? settings.fontSize : settings.width);
-  $('#ann-size').disabled = locked;
+  $('#ann-size').disabled = sizeLocked;
   $('#ann-color').value = settings.color;
-  $('#ann-color').disabled = locked;
+  $('#ann-color').disabled = colorLocked;
   $('#ann-opacity').value = String(Math.round((settings.opacity ?? 1) * 100));
-  $('#ann-opacity').disabled = locked;
+  $('#ann-opacity').disabled = sizeLocked;
 }
 
 const TOOL_HINTS = {
@@ -537,7 +538,7 @@ const TOOL_HINTS = {
   rect: 'Drag to draw a rectangle outline.',
   arrow: 'Drag from the tail to the tip of the arrow.',
   mask: 'Redact permanently removes covered content on export. The whole page is rasterised: text becomes unsearchable, links and form fields are flattened, and document outlines may be lost.',
-  blackbox: 'Black box only covers content visually. The text and objects underneath remain in the PDF and can still be searched or copied. Use Redact to remove them permanently.',
+  blackbox: 'Box only covers content visually. The text and objects underneath remain in the PDF and can still be searched or copied. Use Redact to remove them permanently.',
   signature: (toolState) => (toolState.pendingSignature
     ? 'Drag a box on the page to place your signature. Drag a larger box to make it bigger.'
     : 'Create a signature first, then drag a box on the page to place it.'),
@@ -560,8 +561,8 @@ function warnBlackbox(placed = false) {
   state.blackboxWarnAt = now;
   toast(
     placed
-      ? 'Black box added — it only covers the content visually. The text underneath is still in the PDF and can be searched or copied. Use Redact to remove it permanently.'
-      : 'Black box only covers content visually. The text underneath is still in the PDF and can be searched or copied. Use Redact to remove it permanently.',
+      ? 'Box added — it only covers the content visually. The text underneath is still in the PDF and can be searched or copied. Use Redact to remove it permanently.'
+      : 'Box only covers content visually. The text underneath is still in the PDF and can be searched or copied. Use Redact to remove it permanently.',
     'warn',
     6800,
   );

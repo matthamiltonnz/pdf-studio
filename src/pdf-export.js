@@ -138,7 +138,7 @@ async function drawAnnotationContent(doc, page, ann, ctx, font, sanitize, cache,
       y: rect.y - offsetY,
       width: rect.width,
       height: rect.height,
-      color: colorOf('#111827'),
+      color,
       opacity: 1,
     });
   } else if (ann.type === 'ink') {
@@ -246,8 +246,8 @@ async function addNativeAnnotation(doc, page, ann, ctx, font, sanitize, cache) {
     dict.BS = { W: Math.max(0.5, ann.width), S: 'S' };
   } else if (ann.type === 'blackbox') {
     dict.Subtype = 'Square';
-    dict.C = colorOf('#111827');
-    dict.IC = colorOf('#111827');
+    dict.C = color;
+    dict.IC = color;
     dict.BS = { W: 0.5, S: 'S' };
   } else if (ann.type === 'ink') {
     const points = (ann.points || []).map((point) => mapPoint(point.x, point.y, ctx));
@@ -331,7 +331,7 @@ function annotationText(ann) {
   if (ann.type === 'text' || ann.type === 'comment') return String(ann.text || '');
   if (ann.type === 'highlight') return 'Highlight';
   if (ann.type === 'rect') return 'Rectangle';
-  if (ann.type === 'blackbox') return 'Black box (visual only — underlying text remains)';
+  if (ann.type === 'blackbox') return 'Box (visual only — underlying text remains)';
   if (ann.type === 'ink') return 'Ink';
   if (ann.type === 'arrow') return 'Arrow';
   if (ann.type === 'signature') return 'Signature';
