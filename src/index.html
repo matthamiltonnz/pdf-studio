@@ -142,10 +142,10 @@
   </section>
 
   <!-- ============================== MARKUP ============================== -->
-  <section class="panel panel-wide" id="panel-markup" data-panel="markup" role="tabpanel" aria-label="Sign and mark up" hidden>
+  <section class="panel panel-wide" id="panel-markup" data-panel="markup" role="tabpanel" aria-label="Mark up page" hidden>
     <div class="panel-head">
       <div>
-        <h1>Sign &amp; mark up</h1>
+        <h1>Mark up page</h1>
         <p>Mark up this document, then choose <strong>← Documents</strong> to save and return to the page list. You can also download a copy directly.</p>
       </div>
     </div>
@@ -243,13 +243,14 @@
       <div>
         <h1>How it works</h1>
         <p>PDF Studio is a self-contained web page. There is no server, no account and no analytics.</p>
+        <p>Use the <strong>Documents</strong> workspace to add and merge PDFs, organise pages, and open <strong>Mark up</strong> from any page. Save markup back with <strong>← Documents</strong>, then download or split the result.</p>
       </div>
     </div>
 
     <div class="help-grid">
       <article class="card">
         <h2>Privacy</h2>
-        <p>Every file you open is read directly by this browser tab. Merging, splitting, signing and marking up all happen locally using JavaScript. Nothing is uploaded, and the page makes no network requests.</p>
+        <p>Every file you open is read directly by this browser tab. Organising, merging, splitting, marking up and redacting all happen locally using JavaScript. Nothing is uploaded, and the page makes no network requests.</p>
         <p class="muted">You can disconnect from the network after the page has loaded and everything will keep working.</p>
       </article>
 
@@ -277,7 +278,8 @@
           <li><strong>Select</strong> — click an annotation to move it; drag the bottom-right handle to resize shapes and signatures. Press <kbd>Delete</kbd> to remove it.</li>
         </ul>
         <p>Use the <strong>Width</strong> menu and the zoom buttons above the document to switch between fit width, fit page and fixed zoom levels. The page area expands to use the available window when a PDF is open.</p>
-        <p>On download, annotations are saved as real PDF annotation objects by default (highlight, square, ink, line, free text and stamp). Other PDF readers can list and edit them in their annotation or comment panels. Uncheck <strong>Editable annotations</strong> to flatten them into the page instead.</p>
+        <p>When you choose <strong>Download PDF</strong> in the editor, annotations are saved as real PDF annotation objects by default (highlight, square, ink, line, free text and stamp). Other PDF readers can list and edit them in their annotation or comment panels. Uncheck <strong>Editable annotations</strong> to flatten them into the page instead.</p>
+        <p class="muted">Choose <strong>← Documents</strong> to save your annotations back to the page tray and continue organising. <strong>Download PDF</strong> downloads a separate copy and keeps you in the editor.</p>
         <p><strong>Redact</strong> is destructive and different from a box. Every page containing a redaction is rebuilt from a ~144 DPI image on export. In the downloaded PDF, those pages lose their original text (it is no longer selectable or searchable), images, links, form fields, existing annotations and other objects. Document outlines/bookmarks may also be lost. Covered content cannot be recovered from the downloaded copy. Other pages remain untouched where possible.</p>
       </article>
 
@@ -313,6 +315,7 @@
           <li>To replace wording visually, choose white for the <strong>Box</strong>, cover the old text, then add the replacement with <strong>Text</strong>. Use <strong>Redact</strong> if the old wording must actually be removed.</li>
           <li>Signatures placed here are visual e-signatures. They are not cryptographic digital signatures and do not include a certificate. In editable-annotation mode they are saved as Stamp annotations.</li>
           <li>Annotations that already exist in an opened PDF are rendered and listed as embedded/read-only. PDF Studio does not import them into its editable overlay; use a PDF reader’s annotation panel to edit them.</li>
+          <li>Choosing <strong>← Documents</strong> saves markup into the working PDF. Reopening that page treats the saved annotations as embedded/read-only; other PDF readers can still list and edit them.</li>
           <li>Very large PDFs or very long pages can take a moment to render. Nothing is lost while the page is working.</li>
         </ul>
       </article>

@@ -19,6 +19,17 @@ A local-only PDF editor that ships as **one self-contained HTML file**. Organise
 
 Everything happens client-side with [PDF.js](https://mozilla.github.io/pdf.js/), [pdf-lib](https://pdf-lib.js.org/) and [fflate](https://github.com/101arrowz/fflate). The page makes **no network requests** at runtime.
 
+## How the workspace works
+
+PDF Studio now has one **Documents** workspace instead of separate Merge / Split / Sign tabs.
+
+1. **Documents** — drop one or more PDFs, or use **Add PDFs**. Files are merged in the order added. Dropping more PDFs onto the page tray appends them to the current document.
+2. **Organise** — select pages in the thumbnail tray, then rotate, move or delete them. **Reset pages** restores the original order and rotations.
+3. **Mark up** — choose **Mark up** on any page. The editor opens at that page. Use **← Documents** to save annotations back to the tray, or **Download PDF** to download a separate copy and stay in the editor.
+4. **Export** — download the whole document, extract selected pages, split every *N* pages, or create one PDF per range. Multi-file outputs are ZIP files.
+
+Merge is the import step and split is an export action; markup is a focused page editor opened from Documents.
+
 ## Annotation export and redaction
 
 - **Editable annotations (default):** highlights, rectangles, ink, arrows, text/comment boxes and signatures are written as real PDF annotation objects with appearance streams. They appear in other readers’ annotation/comment panels. Signatures are stored as stamp annotations.
@@ -32,7 +43,7 @@ Everything happens client-side with [PDF.js](https://mozilla.github.io/pdf.js/),
 
 1. Download or copy `dist/pdf-studio.html`.
 2. Double-click it (or drag it into a browser tab).
-3. Drop a PDF in. It works offline.
+3. Drop one or more PDFs into **Documents**. It works offline.
 
 No build step is required to use the file. The PDF.js worker is embedded as a data URL so the file also works from `file://`.
 
@@ -117,7 +128,7 @@ src/
   styles.css          light/dark responsive UI
   main.js             app shell and tab routing
   documents.js        import/merge, page tray, launch markup, split outputs
-    markup.js           page viewer, annotation tools, undo/redo, export
+  markup.js           page viewer, annotation tools, undo/redo, export
   annotation.js       annotation model, canvas rendering, hit testing
   pdf-ops.js          pdf-lib merge/copy operations plus shared page mapping and drawing helpers
   pdf-export.js       native PDF annotations, appearance streams, secure redaction export
@@ -140,7 +151,7 @@ dist/
 
 `npm test` starts a local static server, launches headless Chromium, and checks:
 
-- adding and merging PDFs, appending more files, reordering and page counts;
+- adding and merging PDFs, appending more files, drag-and-drop PDFs onto the page tray, reordering and page counts;
 - opening **Mark up** from a specific page and saving annotations back to the page tray;
 - split rotate → save, undo/redo, reorder, delete/undo, extract, split-every-N and range splitting (including ZIP contents);
 - markup drawing, text, signatures, undo/redo, native annotation export and flattened export;
