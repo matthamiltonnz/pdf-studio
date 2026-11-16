@@ -175,8 +175,9 @@
           <button type="button" class="tool tool-sign" data-tool="signature" title="Place a signature (S)">Signature</button>
         </div>
 
-        <div class="tool-group">
+        <div class="tool-group options-group">
           <label class="color-field" title="Colour">
+
             <input type="color" id="ann-color" value="#ffd400" aria-label="Annotation colour">
             <span>Colour</span>
           </label>
@@ -210,7 +211,7 @@
           </span>
         </div>
 
-        <div class="tool-group">
+        <div class="tool-group history-group">
           <button type="button" class="btn icon" id="markup-undo" title="Undo (Ctrl/Cmd+Z)" disabled>↶</button>
           <button type="button" class="btn icon" id="markup-redo" title="Redo (Ctrl/Cmd+Shift+Z)" disabled>↷</button>
           <button type="button" class="btn icon" id="markup-delete" title="Delete selected annotation (Delete)" disabled>Delete</button>
@@ -245,11 +246,13 @@
         </div>
       </div>
 
-      <div class="markup-hint" id="markup-hint">
-        Tip: choose <strong>Highlight</strong> and drag across text, or <strong>Signature</strong> and drag a box to place your signature.
-        Press <kbd>V</kbd> to return to the select tool.
+      <div class="markup-status">
+        <div class="markup-meta" id="markup-meta"></div>
+        <div class="markup-hint" id="markup-hint">
+          Tip: choose <strong>Highlight</strong> and drag across text, or <strong>Signature</strong> and drag a box to place your signature.
+          Press <kbd>V</kbd> to return to the select tool.
+        </div>
       </div>
-      <div class="markup-meta" id="markup-meta"></div>
 
       <div class="page-scroll" id="page-scroll">
         <div class="pages" id="pages"></div>

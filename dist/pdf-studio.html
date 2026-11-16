@@ -135,29 +135,29 @@ hr { border: 0; border-top: 1px solid var(--line); margin: .25rem 0; }
   z-index: 40;
   display: flex;
   align-items: center;
-  gap: 1rem 1.4rem;
+  gap: .55rem 1rem;
   flex-wrap: wrap;
-  padding: .8rem clamp(1rem, 3.5vw, 2.4rem);
+  padding: .35rem clamp(1rem, 3vw, 2rem);
   background: color-mix(in srgb, var(--panel) 86%, transparent);
   backdrop-filter: saturate(1.4) blur(14px);
   -webkit-backdrop-filter: saturate(1.4) blur(14px);
   border-bottom: 1px solid var(--line);
 }
 
-.brand { display: flex; align-items: center; gap: .7rem; min-width: 0; }
+.brand { display: flex; align-items: center; gap: .55rem; min-width: 0; }
 .brand-mark {
-  width: 40px; height: 40px;
+  width: 32px; height: 32px;
   flex: 0 0 auto;
   display: grid; place-items: center;
-  border-radius: 12px;
+  border-radius: 10px;
   background: linear-gradient(145deg, var(--brand), #4f83ff 55%, #0ea5e9);
   color: #fff;
   box-shadow: 0 8px 18px rgba(29, 78, 216, .28);
 }
-.brand-mark svg { width: 27px; height: 27px; color: #fff; }
-.brand-text { display: flex; flex-direction: column; line-height: 1.12; min-width: 0; }
-.brand-text strong { font-size: 1.02rem; letter-spacing: -.02em; white-space: nowrap; }
-.brand-text small { font-size: .7rem; color: var(--muted); letter-spacing: .035em; white-space: nowrap; }
+.brand-mark svg { width: 23px; height: 23px; color: #fff; }
+.brand-text { display: flex; flex-direction: column; line-height: 1.1; min-width: 0; }
+.brand-text strong { font-size: .96rem; letter-spacing: -.02em; white-space: nowrap; }
+.brand-text small { font-size: .65rem; color: var(--muted); letter-spacing: .035em; white-space: nowrap; }
 
 .tabs {
   display: flex;
@@ -177,9 +177,9 @@ hr { border: 0; border-top: 1px solid var(--line); margin: .25rem 0; }
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-size: .87rem;
+  font-size: .82rem;
   font-weight: 600;
-  padding: .46rem .8rem;
+  padding: .34rem .64rem;
   border-radius: 8px;
   cursor: pointer;
   white-space: nowrap;
@@ -193,12 +193,12 @@ hr { border: 0; border-top: 1px solid var(--line); margin: .25rem 0; }
   display: inline-flex;
   align-items: center;
   gap: .4rem;
-  padding: .4rem .7rem;
+  padding: .28rem .56rem;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--ok) 35%, var(--line));
   background: color-mix(in srgb, var(--ok) 9%, transparent);
   color: var(--ok);
-  font-size: .76rem;
+  font-size: .72rem;
   font-weight: 700;
   letter-spacing: .015em;
   white-space: nowrap;
@@ -541,13 +541,16 @@ main { flex: 1; width: 100%; padding: clamp(1.1rem, 3vw, 2.4rem); }
 /* ----------------------------- Markup ----------------------------- */
 .markup-bar {
   position: sticky;
-  top: 71px;
+  top: 52px;
   z-index: 30;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "back tools end"
+    "options options history";
   align-items: center;
-  flex-wrap: wrap;
-  gap: .5rem .7rem;
-  padding: .55rem .65rem;
+  gap: .35rem .55rem;
+  padding: .4rem .5rem;
   background: color-mix(in srgb, var(--panel) 92%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -556,6 +559,13 @@ main { flex: 1; width: 100%; padding: clamp(1.1rem, 3vw, 2.4rem); }
   box-shadow: var(--shadow-sm);
   margin-bottom: .65rem;
 }
+.markup-back { grid-area: back; }
+#tool-group { grid-area: tools; flex-wrap: nowrap; }
+.options-group { grid-area: options; }
+.history-group { grid-area: history; }
+.markup-bar > .tool-group.end { grid-area: end; }
+.options-group { padding-left: 0; border-left: 0; }
+.markup-bar .tool { padding: .34rem .48rem; }
 .tool-group { display: flex; align-items: center; flex-wrap: wrap; gap: .25rem; min-width: 0; }
 .tool-group + .tool-group { padding-left: .55rem; border-left: 1px solid var(--line); }
 .tool-group.end { justify-content: flex-end; }
@@ -617,27 +627,37 @@ main { flex: 1; width: 100%; padding: clamp(1.1rem, 3vw, 2.4rem); }
   cursor: pointer;
 }
 .zoom-field select:focus { outline: none; border-color: var(--accent); box-shadow: var(--focus); }
-.markup-hint {
+.markup-status {
   display: flex;
   align-items: center;
-  gap: .4rem;
-  flex-wrap: wrap;
-  padding: .5rem .8rem;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--accent-2) 8%, var(--panel));
-  border: 1px solid color-mix(in srgb, var(--accent-2) 22%, var(--line));
+  gap: .75rem;
+  min-width: 0;
+  padding: 0 .15rem .4rem;
+}
+.markup-hint {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
   color: var(--ink-2);
-  font-size: .79rem;
-  margin-bottom: .55rem;
+  font-size: .72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .markup-meta {
   display: flex;
   align-items: center;
-  gap: .5rem;
-  flex-wrap: wrap;
-  font-size: .76rem;
+  gap: .35rem;
+  flex: 0 0 auto;
+  font-size: .7rem;
   color: var(--muted);
-  padding: 0 .2rem .5rem;
+  padding: 0;
 }
 .markup-meta .chip {
   display: inline-flex;
@@ -859,21 +879,19 @@ body.tool-text .page canvas.overlay, body.tool-comment .page canvas.overlay { cu
 /* Full-height document workspace once a PDF is open */
 #panel-markup.is-open { max-width: none; }
 #panel-markup.is-open .panel-head { display: none; }
-#panel-markup.is-open .markup-bar { margin-bottom: .45rem; }
-#panel-markup.is-open .markup-bar,
-#panel-markup.is-open .markup-hint,
-#panel-markup.is-open .markup-meta { flex: 0 0 auto; }
+#panel-markup.is-open .markup-bar { flex: 0 0 auto; margin-bottom: .45rem; }
+#panel-markup.is-open .markup-status { flex: 0 0 auto; }
 #panel-markup.is-open .markup-hint {
-  padding: .32rem .6rem;
-  margin-bottom: .35rem;
-  font-size: .74rem;
-  line-height: 1.45;
+  padding: 0;
+  margin: 0;
+  font-size: .72rem;
+  line-height: 1.4;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-#panel-markup.is-open .markup-meta { padding: 0 .15rem .4rem; }
-#panel-markup.is-open .page-scroll { padding: .7rem; }
+#panel-markup.is-open .markup-meta { padding: 0; }
+#panel-markup.is-open .page-scroll { padding: .55rem; }
 
 @media (min-width: 861px) {
   body.markup-editing { height: 100vh; overflow: hidden; }
@@ -882,6 +900,12 @@ body.tool-text .page canvas.overlay, body.tool-comment .page canvas.overlay { cu
   #panel-markup.is-open { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; width: 100%; }
   #panel-markup.is-open #markup-workspace { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
   #panel-markup.is-open .page-scroll { flex: 1 1 auto; max-height: none; min-height: 0; height: auto; }
+}
+
+@media (max-width: 1120px) {
+  .markup-bar { display: flex; flex-wrap: wrap; }
+  .markup-back, #tool-group, .options-group, .history-group, .markup-bar > .tool-group.end { grid-area: auto; }
+  #tool-group { flex-wrap: wrap; }
 }
 
 @media (max-width: 860px) {
@@ -1092,8 +1116,9 @@ body.tool-text .page canvas.overlay, body.tool-comment .page canvas.overlay { cu
           <button type="button" class="tool tool-sign" data-tool="signature" title="Place a signature (S)">Signature</button>
         </div>
 
-        <div class="tool-group">
+        <div class="tool-group options-group">
           <label class="color-field" title="Colour">
+
             <input type="color" id="ann-color" value="#ffd400" aria-label="Annotation colour">
             <span>Colour</span>
           </label>
@@ -1127,7 +1152,7 @@ body.tool-text .page canvas.overlay, body.tool-comment .page canvas.overlay { cu
           </span>
         </div>
 
-        <div class="tool-group">
+        <div class="tool-group history-group">
           <button type="button" class="btn icon" id="markup-undo" title="Undo (Ctrl/Cmd+Z)" disabled>↶</button>
           <button type="button" class="btn icon" id="markup-redo" title="Redo (Ctrl/Cmd+Shift+Z)" disabled>↷</button>
           <button type="button" class="btn icon" id="markup-delete" title="Delete selected annotation (Delete)" disabled>Delete</button>
@@ -1162,11 +1187,13 @@ body.tool-text .page canvas.overlay, body.tool-comment .page canvas.overlay { cu
         </div>
       </div>
 
-      <div class="markup-hint" id="markup-hint">
-        Tip: choose <strong>Highlight</strong> and drag across text, or <strong>Signature</strong> and drag a box to place your signature.
-        Press <kbd>V</kbd> to return to the select tool.
+      <div class="markup-status">
+        <div class="markup-meta" id="markup-meta"></div>
+        <div class="markup-hint" id="markup-hint">
+          Tip: choose <strong>Highlight</strong> and drag across text, or <strong>Signature</strong> and drag a box to place your signature.
+          Press <kbd>V</kbd> to return to the select tool.
+        </div>
       </div>
-      <div class="markup-meta" id="markup-meta"></div>
 
       <div class="page-scroll" id="page-scroll">
         <div class="pages" id="pages"></div>
