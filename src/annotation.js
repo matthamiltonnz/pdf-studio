@@ -5,7 +5,24 @@ import { clamp } from './util.js';
 
 export const LINE_HEIGHT = 1.28;
 export const COMMENT_PAD = 8;
-export const TEXT_FONT = 'Helvetica, Arial, sans-serif';
+export const FONT_FAMILIES = {
+  helvetica: { label: 'Helvetica', css: 'Helvetica, Arial, sans-serif' },
+  times: { label: 'Times', css: '"Times New Roman", Times, serif' },
+  courier: { label: 'Courier', css: '"Courier New", Courier, monospace' },
+};
+export const FONT_STYLES = {
+  normal: { label: 'Regular' },
+  bold: { label: 'Bold', bold: true },
+  italic: { label: 'Italic', italic: true },
+  bolditalic: { label: 'Bold italic', bold: true, italic: true },
+};
+
+export function fontCss(ann, scale = 1) {
+  const family = FONT_FAMILIES[ann.fontFamily] || FONT_FAMILIES.helvetica;
+  const style = FONT_STYLES[ann.fontStyle] || FONT_STYLES.normal;
+  const modifiers = `${style.italic ? 'italic ' : ''}${style.bold ? '700 ' : '400 '}`;
+  return `${modifiers}${Math.max(1, Number(ann.fontSize) || 14) * scale}px ${family.css}`;
+}
 
 let measureCtx = null;
 function getMeasureContext() {
@@ -16,10 +33,10 @@ function getMeasureContext() {
   return measureCtx;
 }
 
-export function measureText(text, fontSize) {
+export function measureText(text, fontSize, fontFamily = 'helvetica', fontStyle = 'normal') {
   const lines = String(text ?? '').split('\n');
   const ctx = getMeasureContext();
-  ctx.font = `${fontSize}px ${TEXT_FONT}`;
+  ctx.font = fontCss({ fontSize, fontFamily, fontStyle });
   let width = 0;
   for (const line of lines) width = Math.max(width, ctx.measureText(line || ' ').width);
   const lineHeight = fontSize * LINE_HEIGHT;
@@ -34,6 +51,8 @@ export function createAnnotation(type, props = {}) {
     opacity: 1,
     width: 2,
     fontSize: 14,
+    fontFamily: 'helvetica',
+    fontStyle: 'normal',
     text: '',
   };
   return { ...base, ...props };
@@ -45,7 +64,7 @@ export function annotationBounds(ann, Wd, Hd) {
     return { x: ann.x, y: ann.y, w: ann.w, h: ann.h };
   }
   if (type === 'text' || type === 'comment') {
-    const metrics = measureText(ann.text, ann.fontSize);
+    const metrics = measureText(ann.text, ann.fontSize, ann.fontFamily, ann.fontStyle);
     const pad = type === 'comment' ? COMMENT_PAD * 2 : 0;
     return {
       x: ann.x,
@@ -172,16 +191,16 @@ export function drawAnnotation(ctx, ann, Wd, Hd, scale, onImageLoad) {
     ctx.closePath();
     ctx.fill();
   } else if (ann.type === 'text') {
-    const metrics = measureText(ann.text, ann.fontSize);
+    const metrics = measureText(ann.text, ann.fontSize, ann.fontFamily, ann.fontStyle);
     ctx.fillStyle = ann.color;
-    ctx.font = `${ann.fontSize * scale}px ${TEXT_FONT}`;
+    ctx.font = fontCss(ann, scale);
     ctx.textBaseline = 'top';
     const lh = metrics.lineHeight * scale;
     metrics.lines.forEach((line, i) => {
       ctx.fillText(line, px(ann.x), py(ann.y) + i * lh);
     });
   } else if (ann.type === 'comment') {
-    const metrics = measureText(ann.text, ann.fontSize);
+    const metrics = measureText(ann.text, ann.fontSize, ann.fontFamily, ann.fontStyle);
     const pad = COMMENT_PAD * scale;
     const boxW = metrics.width * scale + pad * 2;
     const boxH = metrics.height * scale + pad * 2;
@@ -192,7 +211,7 @@ export function drawAnnotation(ctx, ann, Wd, Hd, scale, onImageLoad) {
     ctx.lineWidth = Math.max(1, 0.8 * scale);
     ctx.stroke();
     ctx.fillStyle = '#3f3a1f';
-    ctx.font = `${ann.fontSize * scale}px ${TEXT_FONT}`;
+    ctx.font = fontCss(ann, scale);
     ctx.textBaseline = 'top';
     const lh = metrics.lineHeight * scale;
     metrics.lines.forEach((line, i) => {

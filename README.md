@@ -15,7 +15,7 @@ A local-only PDF editor that ships as **one self-contained HTML file**. Organise
 | --- | --- |
 | **Documents** | Add one or more PDFs into a single page tray. Files are merged automatically; drag and drop more PDFs onto the page tray or use **Add PDFs** to append them at any time. |
 | **Organise & export** | Thumbnail view with multi-select. Rotate, reorder and delete pages. Open any page with **Mark up**, then download the whole document, extract selected pages, split every *N* pages, or create one PDF per range (`1-3, 4-6, 7`). Multi-file outputs are zipped. |
-| **Mark up a page** | Highlight, freehand ink, text, comment boxes, rectangles, arrows, visual boxes, secure redactions and signatures. Select annotations to move/resize, undo/redo, zoom and export. **← Documents** saves the markup back to the page tray. |
+| **Mark up a page** | Highlight, freehand ink, text with font family/style/size controls, comment boxes, rectangles, arrows, visual boxes, secure redactions and signatures. Select annotations to move/resize, undo/redo, zoom and export. **← Documents** saves the markup back to the page tray. |
 
 Everything happens client-side with [PDF.js](https://mozilla.github.io/pdf.js/), [pdf-lib](https://pdf-lib.js.org/) and [fflate](https://github.com/101arrowz/fflate). The page makes **no network requests** at runtime.
 
@@ -154,7 +154,7 @@ dist/
 - adding and merging PDFs, appending more files, drag-and-drop PDFs onto the page tray, reordering and page counts;
 - opening **Mark up** from a specific page and saving annotations back to the page tray;
 - split rotate → save, undo/redo, reorder, delete/undo, extract, split-every-N and range splitting (including ZIP contents);
-- markup drawing, text, signatures, undo/redo, native annotation export and flattened export;
+- markup drawing, text with font family/style/size controls, signatures, undo/redo, native annotation export and flattened export;
 - secure redaction: rasterised output, no annotation object, no extractable page text, other pages intact;
 - visual box: native Square annotation in the chosen colour while page text remains extractable;
 - page width/zoom presets (fit width, fit page, fixed percentages, custom zoom);

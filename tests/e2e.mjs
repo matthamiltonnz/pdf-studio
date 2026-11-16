@@ -74,9 +74,20 @@ async function annotationSummary(file) {
       if (!dict || !dict.get) continue;
       const subtype = dict.get(PDFName.of('Subtype'));
       const contents = dict.get(PDFName.of('Contents'));
+      const normal = dict.get(PDFName.of('AP'))?.get?.(PDFName.of('N'));
+      const stream = normal ? doc.context.lookup(normal) : null;
+      const fontDict = stream?.dict?.get?.(PDFName.of('Resources'))?.get?.(PDFName.of('Font'));
+      const fonts = [];
+      if (fontDict?.keys) {
+        for (const key of fontDict.keys()) {
+          const base = doc.context.lookup(fontDict.get(key))?.get?.(PDFName.of('BaseFont'));
+          if (base) fonts.push(base.toString());
+        }
+      }
       list.push({
         subtype: subtype ? subtype.toString() : '',
         contents: contents ? contents.toString() : '',
+        fonts,
       });
     }
     return list;
@@ -316,6 +327,14 @@ await page.waitForFunction(() => document.querySelector('#markup-meta').textCont
 console.log('✓ markup draw/undo/redo');
 
 await page.click('[data-tool="text"]');
+await page.waitForSelector('#text-options:not([hidden])');
+await page.selectOption('#ann-font', 'times');
+await page.selectOption('#ann-font-style', 'bolditalic');
+await page.locator('#ann-size').evaluate((el) => {
+  el.value = '22';
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+});
+assert.equal(await page.locator('#size-value').textContent(), '22');
 await page.mouse.click(box.x + box.width * 0.2, box.y + box.height * 0.62);
 await page.waitForSelector('#text-editor:not([hidden])');
 await page.fill('#text-editor-input', 'Reviewed locally');
@@ -378,6 +397,7 @@ await page.waitForFunction(() => document.querySelector('#markup-meta').textCont
 console.log('✓ markup rectangle/ink/arrow/comment');
 
 const editedPath = await saveDownload(() => page.click('#markup-download'));
+
 const edited = await loadPdf(editedPath);
 assert.equal(edited.getPageCount(), 3);
 const nativeAnnotations = await annotationSummary(editedPath);
@@ -387,6 +407,7 @@ assert.deepEqual(
 );
 const freeText = nativeAnnotations[0].find((ann) => ann.subtype === '/FreeText' && ann.contents.includes('Reviewed locally'));
 assert.ok(freeText, 'FreeText annotation should keep its text');
+assert.ok(freeText.fonts.includes('/Times-BoldItalic'), `expected Times bold italic font, got ${freeText.fonts.join(', ')}`);
 
 await page.uncheck('#editable-annotations');
 const flattenedPath = await saveDownload(() => page.click('#markup-download'), 'alpha-flattened.pdf');

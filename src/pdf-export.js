@@ -13,6 +13,44 @@ import { clamp, hexToRgb01 } from './util.js';
 
 const RECT_TYPES = new Set(['highlight', 'rect', 'mask', 'signature']);
 
+const FONT_PDF_NAMES = {
+  helvetica: {
+    normal: StandardFonts.Helvetica,
+    bold: StandardFonts.HelveticaBold,
+    italic: StandardFonts.HelveticaOblique,
+    bolditalic: StandardFonts.HelveticaBoldOblique,
+  },
+  times: {
+    normal: StandardFonts.TimesRoman,
+    bold: StandardFonts.TimesRomanBold,
+    italic: StandardFonts.TimesRomanItalic,
+    bolditalic: StandardFonts.TimesRomanBoldItalic,
+  },
+  courier: {
+    normal: StandardFonts.Courier,
+    bold: StandardFonts.CourierBold,
+    italic: StandardFonts.CourierOblique,
+    bolditalic: StandardFonts.CourierBoldOblique,
+  },
+};
+
+async function embedFontSet(doc) {
+  const fonts = {};
+  for (const [family, styles] of Object.entries(FONT_PDF_NAMES)) {
+    fonts[family] = {};
+    for (const [style, standardFont] of Object.entries(styles)) {
+      fonts[family][style] = await doc.embedFont(standardFont);
+    }
+  }
+  return fonts;
+}
+
+function fontFor(fonts, ann) {
+  const family = FONT_PDF_NAMES[ann.fontFamily] ? ann.fontFamily : 'helvetica';
+  const style = FONT_PDF_NAMES[family][ann.fontStyle] ? ann.fontStyle : 'normal';
+  return fonts[family][style];
+}
+
 /**
  * @param {Uint8Array} sourceBytes
  * @param {Object<number, Array>} annotationsByPage
@@ -30,11 +68,11 @@ export async function exportAnnotatedPdf(sourceBytes, annotationsByPage, options
 
 async function exportInPlace(sourceBytes, annotationsByPage, flatten, title) {
   const doc = await PDFDocument.load(sourceBytes.slice(), { updateMetadata: false });
-  const font = await doc.embedFont(StandardFonts.Helvetica);
-  const sanitize = makeSanitizer(font);
+  const fonts = await embedFontSet(doc);
+  const defaultFont = fonts.helvetica.normal;
   const imageCache = new Map();
   const pages = doc.getPages();
-  ensureAcroFormFont(doc, font);
+  ensureAcroFormFont(doc, defaultFont);
 
   for (let index = 0; index < pages.length; index += 1) {
     const annotations = annotationsByPage[index] || [];
@@ -45,6 +83,8 @@ async function exportInPlace(sourceBytes, annotationsByPage, flatten, title) {
       if (ann.type === 'mask') {
         throw new Error('A redacted page was not rasterised. Please retry the export.');
       }
+      const font = fontFor(fonts, ann);
+      const sanitize = makeSanitizer(font);
       if (flatten) {
         await drawAnnotationContent(doc, page, ann, ctx, font, sanitize, imageCache, 0, 0);
       } else {
@@ -60,10 +100,10 @@ async function exportInPlace(sourceBytes, annotationsByPage, flatten, title) {
 async function exportWithRedactions(sourceBytes, annotationsByPage, redactedPages, flatten, title) {
   const src = await PDFDocument.load(sourceBytes.slice(), { updateMetadata: false });
   const out = await PDFDocument.create();
-  const font = await out.embedFont(StandardFonts.Helvetica);
-  const sanitize = makeSanitizer(font);
+  const fonts = await embedFontSet(out);
+  const defaultFont = fonts.helvetica.normal;
   const imageCache = new Map();
-  ensureAcroFormFont(out, font);
+  ensureAcroFormFont(out, defaultFont);
   const pageCount = src.getPageCount();
 
   for (let index = 0; index < pageCount; index += 1) {
@@ -77,6 +117,8 @@ async function exportWithRedactions(sourceBytes, annotationsByPage, redactedPage
       const masks = annotations.filter((ann) => ann.type === 'mask');
       const kept = annotations.filter((ann) => ann.type !== 'mask' && !masks.some((mask) => overlaps(ann, mask, raster.width, raster.height)));
       for (const ann of kept) {
+        const font = fontFor(fonts, ann);
+        const sanitize = makeSanitizer(font);
         if (flatten) {
           await drawAnnotationContent(out, page, ann, ctx, font, sanitize, imageCache, 0, 0);
         } else {
@@ -91,6 +133,8 @@ async function exportWithRedactions(sourceBytes, annotationsByPage, redactedPage
       out.addPage(page);
       const ctx = pageContext(page);
       for (const ann of annotations) {
+        const font = fontFor(fonts, ann);
+        const sanitize = makeSanitizer(font);
         if (flatten) {
           await drawAnnotationContent(out, page, ann, ctx, font, sanitize, imageCache, 0, 0);
         } else {

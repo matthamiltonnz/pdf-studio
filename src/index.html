@@ -183,11 +183,31 @@
           <label class="range-field" title="Stroke / text size">
             <span id="size-label">Size</span>
             <input type="range" id="ann-size" min="1" max="40" step="1" value="2">
+            <output id="size-value" for="ann-size">2</output>
           </label>
           <label class="range-field" title="Opacity">
             <span>Opacity</span>
             <input type="range" id="ann-opacity" min="10" max="100" step="5" value="35">
           </label>
+          <span class="text-options" id="text-options" hidden>
+            <label class="select-field" title="Font family">
+              <span>Font</span>
+              <select id="ann-font">
+                <option value="helvetica">Helvetica</option>
+                <option value="times">Times</option>
+                <option value="courier">Courier</option>
+              </select>
+            </label>
+            <label class="select-field" title="Font style">
+              <span>Style</span>
+              <select id="ann-font-style">
+                <option value="normal">Regular</option>
+                <option value="bold">Bold</option>
+                <option value="italic">Italic</option>
+                <option value="bolditalic">Bold italic</option>
+              </select>
+            </label>
+          </span>
         </div>
 
         <div class="tool-group">
@@ -273,7 +293,7 @@
           <li><strong>Box</strong> — drag to cover content visually in any colour. The text underneath is still in the PDF and can be searched or copied; use <strong>Redact</strong> to remove it permanently.</li>
           <li><strong>Redact</strong> — drag to permanently remove content. Redaction is destructive when the PDF is exported.</li>
           <li><strong>Draw</strong> — freehand ink.</li>
-          <li><strong>Text</strong> and <strong>Comment</strong> — click a page, type, then add.</li>
+                    <li><strong>Text</strong> and <strong>Comment</strong> — choose a font, style and size in the toolbar, click a page, type, then add.</li>
           <li><strong>Signature</strong> — draw, type or upload a signature, then drag a box on the page.</li>
           <li><strong>Select</strong> — click an annotation to move it; drag the bottom-right handle to resize shapes and signatures. Press <kbd>Delete</kbd> to remove it.</li>
         </ul>
@@ -309,7 +329,7 @@
         <h2>Good to know</h2>
         <ul>
           <li>Password-protected PDFs are not supported. Remove the password first, then edit the file.</li>
-          <li>Text annotations use a built-in PDF font that covers Western European characters. Other scripts may be replaced with <code>?</code>; use an image-based signature for names in other scripts.</li>
+          <li>Text annotations use built-in PDF fonts that cover Western European characters. Other scripts may be replaced with <code>?</code>; use an image-based signature for names in other scripts.</li>
           <li>The <strong>Redact</strong> tool permanently removes covered content from the downloaded PDF by rasterising the affected pages at roughly 2× page resolution (~144 DPI). On those pages, text is no longer selectable or searchable, and images, links, form fields, existing annotations and other objects are flattened or removed. It is not reversible in that file; keep the original if you may need the underlying text. Links and form fields on redacted pages are flattened, and outlines may be lost.</li>
           <li>The <strong>Box</strong> tool is visual only. It draws an opaque cover, but the underlying text and objects remain in the downloaded PDF and can still be selected, searched or extracted. Use <strong>Redact</strong> when removal is required.</li>
           <li>To replace wording visually, choose white for the <strong>Box</strong>, cover the old text, then add the replacement with <strong>Text</strong>. Use <strong>Redact</strong> if the old wording must actually be removed.</li>

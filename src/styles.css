@@ -569,6 +569,17 @@ main { flex: 1; width: 100%; padding: clamp(1.1rem, 3vw, 2.4rem); }
 .tool-sign { border-color: color-mix(in srgb, var(--accent) 20%, transparent); }
 .tool-sign.is-active { background: var(--brand-soft); }
 .color-field, .range-field { display: inline-flex; align-items: center; gap: .35rem; font-size: .75rem; color: var(--muted); }
+.select-field { display: inline-flex; align-items: center; gap: .3rem; font-size: .75rem; color: var(--muted); }
+.select-field select {
+  font: inherit;
+  color: var(--ink);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: .22rem .35rem;
+}
+.text-options { display: inline-flex; align-items: center; gap: .45rem; }
+.text-options[hidden] { display: none; }
 .color-field { margin-right: .2rem; }
 .color-field input[type="color"] {
   width: 30px; height: 30px;
@@ -580,6 +591,7 @@ main { flex: 1; width: 100%; padding: clamp(1.1rem, 3vw, 2.4rem); }
 }
 .range-field input[type="range"] { width: 74px; accent-color: var(--accent); cursor: pointer; }
 .range-field span { min-width: 32px; }
+.range-field output { min-width: 2ch; color: var(--ink); font-variant-numeric: tabular-nums; }
 .divider { width: 1px; height: 22px; background: var(--line); margin: 0 .2rem; }
 .zoom-label { min-width: 44px; text-align: center; font-size: .76rem; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
 .zoom-field { display: inline-flex; align-items: center; gap: .3rem; font-size: .72rem; color: var(--muted); }

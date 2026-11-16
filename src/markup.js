@@ -19,8 +19,8 @@ const TOOL_DEFAULTS = {
   select: { color: '#2563eb', width: 2, opacity: 1, fontSize: 14 },
   highlight: { color: '#ffd400', width: 2, opacity: 0.35, fontSize: 14 },
   ink: { color: '#dc2626', width: 2, opacity: 1, fontSize: 14 },
-  text: { color: '#111827', width: 2, opacity: 1, fontSize: 16 },
-  comment: { color: '#eab308', width: 2, opacity: 1, fontSize: 14 },
+  text: { color: '#111827', width: 2, opacity: 1, fontSize: 16, fontFamily: 'helvetica', fontStyle: 'normal' },
+  comment: { color: '#eab308', width: 2, opacity: 1, fontSize: 14, fontFamily: 'helvetica', fontStyle: 'normal' },
   rect: { color: '#dc2626', width: 2, opacity: 1, fontSize: 14 },
   arrow: { color: '#dc2626', width: 2, opacity: 1, fontSize: 14 },
   mask: { color: '#111827', width: 2, opacity: 1, fontSize: 14 },
@@ -127,6 +127,13 @@ export function initMarkup() {
     const value = Number(event.target.value);
     if (TEXT_TOOLS.has(state.tool)) activeSettings().fontSize = value;
     else activeSettings().width = value;
+    syncControls();
+  });
+  $('#ann-font').addEventListener('change', (event) => {
+    activeSettings().fontFamily = event.target.value;
+  });
+  $('#ann-font-style').addEventListener('change', (event) => {
+    activeSettings().fontStyle = event.target.value;
   });
   $('#ann-opacity').addEventListener('input', (event) => {
     activeSettings().opacity = Number(event.target.value) / 100;
@@ -548,7 +555,11 @@ function syncControls() {
   const sizeLocked = colorLocked || state.tool === 'blackbox';
   $('#size-label').textContent = isText ? 'Font size' : 'Size';
   $('#ann-size').value = String(isText ? settings.fontSize : settings.width);
+  $('#size-value').textContent = String(isText ? settings.fontSize : settings.width);
   $('#ann-size').disabled = sizeLocked;
+  $('#text-options').hidden = !isText;
+  $('#ann-font').value = settings.fontFamily || 'helvetica';
+  $('#ann-font-style').value = settings.fontStyle || 'normal';
   $('#ann-color').value = settings.color;
   $('#ann-color').disabled = colorLocked;
   $('#ann-opacity').value = String(Math.round((settings.opacity ?? 1) * 100));
@@ -784,6 +795,8 @@ function onPointerDown(event, pv) {
     opacity: settings.opacity,
     width: settings.width,
     fontSize: settings.fontSize,
+    fontFamily: settings.fontFamily,
+    fontStyle: settings.fontStyle,
   };
   if (RECT_TOOLS.has(state.tool)) {
     state.draft = {
@@ -1030,6 +1043,8 @@ function commitTextEditor() {
     text,
     color: settings.color,
     fontSize: settings.fontSize,
+    fontFamily: settings.fontFamily,
+    fontStyle: settings.fontStyle,
     opacity: settings.opacity ?? 1,
   });
   const list = annotationList(target.page);
