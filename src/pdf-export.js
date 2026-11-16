@@ -131,6 +131,16 @@ async function drawAnnotationContent(doc, page, ann, ctx, font, sanitize, cache,
     });
   } else if (ann.type === 'mask') {
     // Redactions are baked into a rasterised page, never drawn as annotations.
+  } else if (ann.type === 'blackbox') {
+    const rect = mapRect(ann.x, ann.y, ann.w, ann.h, ctx);
+    page.drawRectangle({
+      x: rect.x - offsetX,
+      y: rect.y - offsetY,
+      width: rect.width,
+      height: rect.height,
+      color: colorOf('#111827'),
+      opacity: 1,
+    });
   } else if (ann.type === 'ink') {
     const points = ann.points || [];
     if (points.length === 1) {
@@ -234,6 +244,11 @@ async function addNativeAnnotation(doc, page, ann, ctx, font, sanitize, cache) {
     dict.Subtype = 'Square';
     dict.C = color;
     dict.BS = { W: Math.max(0.5, ann.width), S: 'S' };
+  } else if (ann.type === 'blackbox') {
+    dict.Subtype = 'Square';
+    dict.C = colorOf('#111827');
+    dict.IC = colorOf('#111827');
+    dict.BS = { W: 0.5, S: 'S' };
   } else if (ann.type === 'ink') {
     const points = (ann.points || []).map((point) => mapPoint(point.x, point.y, ctx));
     if (!points.length) return;
@@ -316,6 +331,7 @@ function annotationText(ann) {
   if (ann.type === 'text' || ann.type === 'comment') return String(ann.text || '');
   if (ann.type === 'highlight') return 'Highlight';
   if (ann.type === 'rect') return 'Rectangle';
+  if (ann.type === 'blackbox') return 'Black box (visual only — underlying text remains)';
   if (ann.type === 'ink') return 'Ink';
   if (ann.type === 'arrow') return 'Arrow';
   if (ann.type === 'signature') return 'Signature';

@@ -209,6 +209,7 @@
           <button type="button" class="tool" data-tool="rect" title="Draw a rectangle (R)">Rectangle</button>
           <button type="button" class="tool" data-tool="arrow" title="Draw an arrow (A)">Arrow</button>
           <button type="button" class="tool" data-tool="mask" title="Permanently redact content (M)">Redact</button>
+          <button type="button" class="tool" data-tool="blackbox" title="Cover content visually only (B) — underlying text remains">Black box</button>
           <button type="button" class="tool tool-sign" data-tool="signature" title="Place a signature (S)">Signature</button>
         </div>
 
@@ -305,7 +306,9 @@
         <h2>Sign &amp; mark up</h2>
         <p>Pick a tool and interact with the page:</p>
         <ul>
-          <li><strong>Highlight</strong>, <strong>Rectangle</strong>, <strong>Arrow</strong> and <strong>Redact</strong> — drag to draw. Redaction is destructive when the PDF is exported.</li>
+          <li><strong>Highlight</strong>, <strong>Rectangle</strong> and <strong>Arrow</strong> — drag to draw.</li>
+          <li><strong>Black box</strong> — drag to cover content visually. The text underneath is still in the PDF and can be searched or copied; use <strong>Redact</strong> to remove it permanently.</li>
+          <li><strong>Redact</strong> — drag to permanently remove content. Redaction is destructive when the PDF is exported.</li>
           <li><strong>Draw</strong> — freehand ink.</li>
           <li><strong>Text</strong> and <strong>Comment</strong> — click a page, type, then add.</li>
           <li><strong>Signature</strong> — draw, type or upload a signature, then drag a box on the page.</li>
@@ -313,7 +316,7 @@
         </ul>
         <p>Use the <strong>Width</strong> menu and the zoom buttons above the document to switch between fit width, fit page and fixed zoom levels. The page area expands to use the available window when a PDF is open.</p>
         <p>On download, annotations are saved as real PDF annotation objects by default (highlight, square, ink, line, free text and stamp). Other PDF readers can list and edit them in their annotation or comment panels. Uncheck <strong>Editable annotations</strong> to flatten them into the page instead.</p>
-        <p><strong>Redact</strong> is different: pages containing redactions are rebuilt from a high-resolution image on export, so the original text and objects on those pages are not included in the downloaded file. Covered content cannot be recovered from the downloaded PDF. Links and form fields on redacted pages are flattened; document outlines may also be lost.</p>
+        <p><strong>Redact</strong> is destructive and different from a black box. Every page containing a redaction is rebuilt from a ~144 DPI image on export. In the downloaded PDF, those pages lose their original text (it is no longer selectable or searchable), images, links, form fields, existing annotations and other objects. Document outlines/bookmarks may also be lost. Covered content cannot be recovered from the downloaded copy. Other pages remain untouched where possible.</p>
       </article>
 
       <article class="card">
@@ -327,6 +330,7 @@
           <li><kbd>R</kbd> Rectangle</li>
           <li><kbd>A</kbd> Arrow</li>
           <li><kbd>M</kbd> Redact</li>
+          <li><kbd>B</kbd> Black box</li>
           <li><kbd>S</kbd> Signature</li>
           <li><kbd>Ctrl/Cmd</kbd> + <kbd>Z</kbd> Undo</li>
           <li><kbd>Ctrl/Cmd</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> Redo</li>
@@ -342,7 +346,8 @@
         <ul>
           <li>Password-protected PDFs are not supported. Remove the password first, then edit the file.</li>
           <li>Text annotations use a built-in PDF font that covers Western European characters. Other scripts may be replaced with <code>?</code>; use an image-based signature for names in other scripts.</li>
-          <li>The <strong>Redact</strong> tool permanently removes covered content from the downloaded PDF by rasterising the affected pages at roughly 2× page resolution (~144 DPI). It is not reversible in that file; keep the original if you may need the underlying text. Links and form fields on redacted pages are flattened, and outlines may be lost.</li>
+          <li>The <strong>Redact</strong> tool permanently removes covered content from the downloaded PDF by rasterising the affected pages at roughly 2× page resolution (~144 DPI). On those pages, text is no longer selectable or searchable, and images, links, form fields, existing annotations and other objects are flattened or removed. It is not reversible in that file; keep the original if you may need the underlying text. Links and form fields on redacted pages are flattened, and outlines may be lost.</li>
+          <li>The <strong>Black box</strong> tool is visual only. It draws an opaque cover, but the underlying text and objects remain in the downloaded PDF and can still be selected, searched or extracted. Use <strong>Redact</strong> when removal is required.</li>
           <li>Signatures placed here are visual e-signatures. They are not cryptographic digital signatures and do not include a certificate. In editable-annotation mode they are saved as Stamp annotations.</li>
           <li>Annotations that already exist in an opened PDF are rendered and listed as embedded/read-only. PDF Studio does not import them into its editable overlay; use a PDF reader’s annotation panel to edit them.</li>
           <li>Very large PDFs or very long pages can take a moment to render. Nothing is lost while the page is working.</li>

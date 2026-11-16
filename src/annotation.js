@@ -41,7 +41,7 @@ export function createAnnotation(type, props = {}) {
 
 export function annotationBounds(ann, Wd, Hd) {
   const type = ann.type;
-  if (type === 'highlight' || type === 'rect' || type === 'mask' || type === 'signature') {
+  if (type === 'highlight' || type === 'rect' || type === 'mask' || type === 'blackbox' || type === 'signature') {
     return { x: ann.x, y: ann.y, w: ann.w, h: ann.h };
   }
   if (type === 'text' || type === 'comment') {

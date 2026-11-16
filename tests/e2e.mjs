@@ -429,7 +429,10 @@ await page.waitForFunction(() => {
 const redactedPromise = page.waitForEvent('download');
 await page.click('#markup-download');
 await page.waitForSelector('#app-confirm');
-assert.match(await page.locator('#app-confirm').textContent(), /permanently removes/i);
+const redactionWarning = await page.locator('#app-confirm').textContent();
+assert.match(redactionWarning, /Permanently remove/i);
+assert.match(redactionWarning, /no longer selectable or searchable/i);
+assert.match(redactionWarning, /links, form fields, existing annotations/i);
 await page.click('#app-confirm-ok');
 const redactedDownload = await redactedPromise;
 const redactedPath = path.join(tmp, 'alpha-redacted.pdf');
@@ -454,6 +457,33 @@ await setPageWidth('fit-page');
 const redactedPixel = await samplePage(0.35, 0.4);
 assert.ok(redactedPixel[0] < 30 && redactedPixel[1] < 30 && redactedPixel[2] < 30, `redaction pixel was ${redactedPixel}`);
 console.log('✓ redacted page renders');
+
+// ----------------------------- Visual black box (text remains) -----------------------------
+await openMarkupFile(path.join(fixtures, 'alpha.pdf'));
+await waitForMarkup('alpha.pdf');
+await setPageWidth('fit-page');
+box = await overlayBox(0);
+await page.click('[data-tool="blackbox"]');
+await page.mouse.move(box.x + box.width * 0.05, box.y + box.height * 0.3);
+await page.mouse.down();
+await page.mouse.move(box.x + box.width * 0.7, box.y + box.height * 0.52, { steps: 8 });
+await page.mouse.up();
+await page.waitForFunction(() => document.querySelector('#markup-meta').textContent.includes('text remains available'));
+const blackboxToast = await page.locator('#toasts').textContent();
+assert.match(blackboxToast, /text underneath is still in the PDF/i);
+const blackboxPath = await saveDownload(() => page.click('#markup-download'), 'alpha-blackbox.pdf');
+const blackboxAnnotations = await annotationSummary(blackboxPath);
+assert.equal(blackboxAnnotations[0].length, 1);
+assert.equal(blackboxAnnotations[0][0].subtype, '/Square');
+assert.match(blackboxAnnotations[0][0].contents, /visual only/i);
+assert.match(await extractText(blackboxPath, 1), /Page 1/);
+
+await openMarkupFile(blackboxPath, { confirm: true });
+await waitForMarkup('alpha-blackbox.pdf');
+await setPageWidth('fit-page');
+const blackboxPixel = await samplePage(0.35, 0.4);
+assert.ok(blackboxPixel[0] < 60 && blackboxPixel[1] < 60 && blackboxPixel[2] < 60, `black box pixel was ${blackboxPixel}`);
+console.log('✓ black box covers visually while text remains');
 
 // ----------------------------- Offline file:// -----------------------------
 const offline = await context.newPage();

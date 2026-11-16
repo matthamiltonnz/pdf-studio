@@ -689,7 +689,7 @@ body.tool-text .page canvas.overlay, body.tool-comment .page canvas.overlay { cu
 }
 .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: .9rem; }
 #app-confirm .modal { width: min(470px, 100%); }
-#app-confirm .modal p { color: var(--muted); }
+#app-confirm .modal p { color: var(--muted); white-space: pre-line; line-height: 1.55; }
 .modal-actions { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-top: 1rem; padding-top: .9rem; border-top: 1px solid var(--line); }
 .segmented { display: inline-flex; padding: .2rem; gap: .15rem; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; margin-bottom: .8rem; }
 .segment {

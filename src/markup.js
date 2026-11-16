@@ -13,7 +13,7 @@ import { openWithPdfjs } from './pdfjs-loader.js';
 import { openSignatureModal } from './signature.js';
 
 const TEXT_TOOLS = new Set(['text', 'comment']);
-const RECT_TOOLS = new Set(['highlight', 'rect', 'mask', 'signature']);
+const RECT_TOOLS = new Set(['highlight', 'rect', 'mask', 'blackbox', 'signature']);
 
 const TOOL_DEFAULTS = {
   select: { color: '#2563eb', width: 2, opacity: 1, fontSize: 14 },
@@ -24,6 +24,7 @@ const TOOL_DEFAULTS = {
   rect: { color: '#dc2626', width: 2, opacity: 1, fontSize: 14 },
   arrow: { color: '#dc2626', width: 2, opacity: 1, fontSize: 14 },
   mask: { color: '#111827', width: 2, opacity: 1, fontSize: 14 },
+  blackbox: { color: '#111827', width: 2, opacity: 1, fontSize: 14 },
   signature: { color: '#111827', width: 2, opacity: 1, fontSize: 14 },
 };
 
@@ -45,6 +46,8 @@ const state = {
   historyIndex: -1,
   pendingSignature: null,
   maskWarned: false,
+  blackboxWarned: false,
+  blackboxWarnAt: 0,
   embeddedAnnotations: 0,
   busy: false,
   textTarget: null,
@@ -446,6 +449,13 @@ function countRedactions() {
   );
 }
 
+function countBlackboxes() {
+  return Object.values(state.annotations).reduce(
+    (sum, list) => sum + list.filter((ann) => ann.type === 'blackbox').length,
+    0,
+  );
+}
+
 function findSelected() {
   if (!state.selectedId || state.selectedPage == null) return null;
   const list = annotationList(state.selectedPage);
@@ -474,7 +484,14 @@ function updateMeta() {
   if (redactions > 0) {
     const warn = document.createElement('span');
     warn.className = 'chip warn';
-    warn.textContent = `${redactions} redaction${redactions === 1 ? '' : 's'} · rasterised on download`;
+    warn.textContent = `${redactions} redaction${redactions === 1 ? '' : 's'} · page text/links/forms removed on export`;
+    host.appendChild(warn);
+  }
+  const blackboxes = countBlackboxes();
+  if (blackboxes > 0) {
+    const warn = document.createElement('span');
+    warn.className = 'chip warn';
+    warn.textContent = `${blackboxes} black box${blackboxes === 1 ? '' : 'es'} · text remains available`;
     host.appendChild(warn);
   }
   if (state.embeddedAnnotations > 0) {
@@ -501,7 +518,7 @@ function syncControls() {
   const isText = TEXT_TOOLS.has(state.tool);
   const isSelect = state.tool === 'select';
   const isSignature = state.tool === 'signature';
-  const locked = isSelect || isSignature || state.tool === 'mask';
+  const locked = isSelect || isSignature || state.tool === 'mask' || state.tool === 'blackbox';
   $('#size-label').textContent = isText ? 'Font size' : 'Size';
   $('#ann-size').value = String(isText ? settings.fontSize : settings.width);
   $('#ann-size').disabled = locked;
@@ -519,7 +536,8 @@ const TOOL_HINTS = {
   comment: 'Click a page to add a comment box. Press Ctrl/Cmd + Enter to add it.',
   rect: 'Drag to draw a rectangle outline.',
   arrow: 'Drag from the tail to the tip of the arrow.',
-  mask: 'Drag a box over content to redact it. Pages with redactions are rasterised on export, permanently removing the covered text and objects (links and forms on that page are flattened).',
+  mask: 'Redact permanently removes covered content on export. The whole page is rasterised: text becomes unsearchable, links and form fields are flattened, and document outlines may be lost.',
+  blackbox: 'Black box only covers content visually. The text and objects underneath remain in the PDF and can still be searched or copied. Use Redact to remove them permanently.',
   signature: (toolState) => (toolState.pendingSignature
     ? 'Drag a box on the page to place your signature. Drag a larger box to make it bigger.'
     : 'Create a signature first, then drag a box on the page to place it.'),
@@ -534,6 +552,19 @@ function beginSignature() {
       $('#markup-hint').title = $('#markup-hint').textContent;
     }
   });
+}
+
+function warnBlackbox(placed = false) {
+  const now = Date.now();
+  if (!placed && state.blackboxWarnAt && now - state.blackboxWarnAt < 8000) return;
+  state.blackboxWarnAt = now;
+  toast(
+    placed
+      ? 'Black box added — it only covers the content visually. The text underneath is still in the PDF and can be searched or copied. Use Redact to remove it permanently.'
+      : 'Black box only covers content visually. The text underneath is still in the PDF and can be searched or copied. Use Redact to remove it permanently.',
+    'warn',
+    6800,
+  );
 }
 
 function setTool(tool) {
@@ -554,7 +585,11 @@ function setTool(tool) {
   if (tool === 'signature' && !state.pendingSignature) beginSignature();
   if (tool === 'mask' && !state.maskWarned) {
     state.maskWarned = true;
-    toast('Redaction is permanent. Pages with redactions are rasterised on export, removing the covered text and objects.', 'warn', 6200);
+    toast('Redaction is permanent. On export, affected pages are rasterised: text becomes unsearchable, and links, forms and annotations on those pages are removed or flattened.', 'warn', 6800);
+  }
+  if (tool === 'blackbox' && !state.blackboxWarned) {
+    state.blackboxWarned = true;
+    warnBlackbox(false);
   }
   updateToolbarState();
   if (state.pageViews.length) redrawAll();
@@ -773,7 +808,7 @@ function onPointerMove(event, pv) {
   }
 
   if (draft) {
-    if (draft.type === 'highlight' || draft.type === 'rect' || draft.type === 'mask' || draft.type === 'signature') {
+    if (draft.type === 'highlight' || draft.type === 'rect' || draft.type === 'mask' || draft.type === 'blackbox' || draft.type === 'signature') {
       draft.w = point.nx - draft.x;
       draft.h = point.ny - draft.y;
     } else if (draft.type === 'arrow') {
@@ -849,7 +884,7 @@ async function finalizeDraft(pv) {
   const settings = activeSettings();
   let ann = null;
 
-  if (draft.type === 'highlight' || draft.type === 'rect' || draft.type === 'mask') {
+  if (draft.type === 'highlight' || draft.type === 'rect' || draft.type === 'mask' || draft.type === 'blackbox') {
     normalizeDraftRect(draft);
     if (draft.w * pv.baseW < 3 || draft.h * pv.baseH < 3) return;
     ann = createAnnotation(draft.type, {
@@ -928,6 +963,7 @@ async function finalizeDraft(pv) {
   updateMeta();
   updateToolbarState();
   drawOverlay(pv);
+  if (ann.type === 'blackbox') warnBlackbox(true);
   if (ann.type === 'signature') setTool('select');
 }
 
@@ -1084,7 +1120,7 @@ function onKeyDown(event) {
     return;
   }
   if (mod || event.altKey) return;
-  const map = { v: 'select', h: 'highlight', p: 'ink', t: 'text', c: 'comment', r: 'rect', a: 'arrow', m: 'mask', s: 'signature' };
+  const map = { v: 'select', h: 'highlight', p: 'ink', t: 'text', c: 'comment', r: 'rect', a: 'arrow', m: 'mask', b: 'blackbox', s: 'signature' };
   const tool = map[key];
   if (tool) {
     event.preventDefault();
@@ -1152,7 +1188,13 @@ async function downloadMarkedUp() {
   }
   if (redactions > 0) {
     const proceed = await confirmDialog(
-      'Redaction permanently removes the covered content. Pages containing redactions are rasterised, so text, links and form fields on those pages are flattened and the original page content is not included in the downloaded file.',
+      'Applying secure redaction will:\n\n'
+      + '• Permanently remove the covered content from the downloaded PDF.\n'
+      + '• Rasterise each page containing a redaction at about 144 DPI.\n'
+      + '• Remove the original text from those pages, so it is no longer selectable or searchable.\n'
+      + '• Flatten or remove images, links, form fields, existing annotations and other objects on those pages.\n'
+      + '• Possibly drop document outlines/bookmarks.\n\n'
+      + 'The original PDF on your device is unchanged, but this cannot be undone in the downloaded file.',
       { title: 'Apply secure redaction?', okLabel: 'Apply and download' },
     );
     if (!proceed) return;
