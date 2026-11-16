@@ -1,6 +1,8 @@
 /* PDF operations that touch the file itself: merge, page copying and flattening. */
-import { PDFDocument, StandardFonts, degrees, rgb, LineCapStyle } from 'pdf-lib';
-import { LINE_HEIGHT, COMMENT_PAD } from './annotation.js';
+import {
+  PDFDocument, PDFDict, PDFName, PDFString, StandardFonts, degrees, rgb, LineCapStyle,
+} from 'pdf-lib';
+import { LINE_HEIGHT } from './annotation.js';
 import { clamp, hexToRgb01 } from './util.js';
 
 const PDF_MAGIC = /%PDF-/;
@@ -75,7 +77,7 @@ export async function buildPdfGroups(sourceBytes, groups, titleBase) {
   return out;
 }
 
-function pageContext(page) {
+export function pageContext(page) {
   const box = page.getCropBox();
   const rotation = normalizeRotation(page.getRotation().angle);
   const displayWidth = rotation % 180 ? box.height : box.width;
@@ -83,7 +85,7 @@ function pageContext(page) {
   return { box, rotation, Wd: displayWidth, Hd: displayHeight };
 }
 
-function mapPoint(nx, ny, ctx) {
+export function mapPoint(nx, ny, ctx) {
   const { box, rotation, Wd, Hd } = ctx;
   const xd = nx * Wd;
   const yd = ny * Hd;
@@ -93,7 +95,7 @@ function mapPoint(nx, ny, ctx) {
   return { x: box.x + xd, y: box.y + box.height - yd };
 }
 
-function mapRect(nx, ny, nw, nh, ctx) {
+export function mapRect(nx, ny, nw, nh, ctx) {
   const { box, rotation, Wd, Hd } = ctx;
   const xd = nx * Wd;
   const yd = ny * Hd;
@@ -111,12 +113,12 @@ function mapRect(nx, ny, nw, nh, ctx) {
   return { x: box.x + xd, y: box.y + box.height - (yd + hd), width: wd, height: hd };
 }
 
-function colorOf(hex) {
+export function colorOf(hex) {
   const { red, green, blue } = hexToRgb01(hex);
   return rgb(red, green, blue);
 }
 
-function makeSanitizer(font) {
+export function makeSanitizer(font) {
   let supported = null;
   try {
     supported = new Set(font.getCharacterSet());
@@ -135,9 +137,11 @@ function makeSanitizer(font) {
   };
 }
 
-function drawArrow(page, ann, ctx, color) {
-  const start = mapPoint(ann.x1, ann.y1, ctx);
-  const end = mapPoint(ann.x2, ann.y2, ctx);
+export function drawArrow(page, ann, ctx, color, offsetX = 0, offsetY = 0) {
+  const startPoint = mapPoint(ann.x1, ann.y1, ctx);
+  const endPoint = mapPoint(ann.x2, ann.y2, ctx);
+  const start = { x: startPoint.x - offsetX, y: startPoint.y - offsetY };
+  const end = { x: endPoint.x - offsetX, y: endPoint.y - offsetY };
   const thickness = Math.max(0.5, ann.width);
   page.drawLine({ start, end, thickness, color, opacity: ann.opacity ?? 1, lineCap: LineCapStyle.Round });
 
@@ -147,13 +151,13 @@ function drawArrow(page, ann, ctx, color) {
   const y2 = ann.y2 * ctx.Hd;
   const angle = Math.atan2(y2 - y1, x2 - x1);
   const head = Math.max(9, 5 + thickness * 3);
-  const wings = [angle - Math.PI / 7, angle + Math.PI / 7];
-  for (const wing of wings) {
+  for (const wing of [angle - Math.PI / 7, angle + Math.PI / 7]) {
     const wx = (x2 - head * Math.cos(wing)) / ctx.Wd;
     const wy = (y2 - head * Math.sin(wing)) / ctx.Hd;
+    const wingPoint = mapPoint(wx, wy, ctx);
     page.drawLine({
       start: end,
-      end: mapPoint(wx, wy, ctx),
+      end: { x: wingPoint.x - offsetX, y: wingPoint.y - offsetY },
       thickness,
       color,
       opacity: ann.opacity ?? 1,
@@ -162,17 +166,17 @@ function drawArrow(page, ann, ctx, color) {
   }
 }
 
-async function drawSignature(doc, page, ann, ctx, cache) {
+export async function drawSignature(doc, page, ann, ctx, cache, offsetX = 0, offsetY = 0) {
   if (!ann.src) return;
   let image = cache.get(ann.src);
   if (!image) {
     image = await doc.embedPng(ann.src);
     cache.set(ann.src, image);
   }
-  const anchor = mapPoint(ann.x, ann.y + ann.h, ctx);
+  const anchorPoint = mapPoint(ann.x, ann.y + ann.h, ctx);
   page.drawImage(image, {
-    x: anchor.x,
-    y: anchor.y,
+    x: anchorPoint.x - offsetX,
+    y: anchorPoint.y - offsetY,
     width: ann.w * ctx.Wd,
     height: ann.h * ctx.Hd,
     rotate: degrees(ctx.rotation),
@@ -180,10 +184,12 @@ async function drawSignature(doc, page, ann, ctx, cache) {
   });
 }
 
-function drawTextBlock(page, ann, ctx, font, sanitize, color, options = {}) {
+export function drawTextBlock(page, ann, ctx, font, sanitize, color, options = {}) {
   const fontSize = Math.max(2, ann.fontSize);
   const lineHeight = fontSize * LINE_HEIGHT;
   const pad = options.padding || 0;
+  const offsetX = options.offsetX || 0;
+  const offsetY = options.offsetY || 0;
   const lines = String(ann.text ?? '').split('\n');
   lines.forEach((line, i) => {
     const topY = ann.y + pad / ctx.Hd + (i * lineHeight) / ctx.Hd;
@@ -192,8 +198,8 @@ function drawTextBlock(page, ann, ctx, font, sanitize, color, options = {}) {
     const text = sanitize(line);
     if (!text) return;
     page.drawText(text, {
-      x: point.x,
-      y: point.y,
+      x: point.x - offsetX,
+      y: point.y - offsetY,
       size: fontSize,
       font,
       color,
@@ -202,87 +208,7 @@ function drawTextBlock(page, ann, ctx, font, sanitize, color, options = {}) {
     });
   });
 }
-/**
- * Draw annotations into a copy of the PDF and return the saved bytes.
- * Existing page content, links and form fields are left untouched.
- */
-export async function flattenAnnotations(sourceBytes, annotationsByPage, title) {
-  const doc = await PDFDocument.load(sourceBytes.slice(), { updateMetadata: false });
-  const font = await doc.embedFont(StandardFonts.Helvetica);
-  const sanitize = makeSanitizer(font);
-  const imageCache = new Map();
-  const pages = doc.getPages();
-
-  for (let index = 0; index < pages.length; index += 1) {
-    const annotations = annotationsByPage[index];
-    if (!annotations || !annotations.length) continue;
-    const page = pages[index];
-    const ctx = pageContext(page);
-
-    for (const ann of annotations) {
-      const opacity = clamp(ann.opacity ?? 1, 0, 1);
-      const color = colorOf(ann.color || '#111827');
-
-      if (ann.type === 'highlight') {
-        const rect = mapRect(ann.x, ann.y, ann.w, ann.h, ctx);
-        page.drawRectangle({ ...rect, color, opacity });
-      } else if (ann.type === 'rect') {
-        const rect = mapRect(ann.x, ann.y, ann.w, ann.h, ctx);
-        page.drawRectangle({
-          ...rect,
-          borderColor: color,
-          borderWidth: Math.max(0.3, ann.width),
-          opacity,
-          borderOpacity: opacity,
-        });
-      } else if (ann.type === 'mask') {
-        const rect = mapRect(ann.x, ann.y, ann.w, ann.h, ctx);
-        page.drawRectangle({ ...rect, color: colorOf(ann.color || '#111827'), opacity: 1 });
-      } else if (ann.type === 'ink') {
-        const points = ann.points || [];
-        if (points.length === 1) {
-          const point = mapPoint(points[0].x, points[0].y, ctx);
-          page.drawCircle({ x: point.x, y: point.y, size: Math.max(0.5, ann.width / 2), color, opacity });
-        }
-        for (let i = 1; i < points.length; i += 1) {
-          page.drawLine({
-            start: mapPoint(points[i - 1].x, points[i - 1].y, ctx),
-            end: mapPoint(points[i].x, points[i].y, ctx),
-            thickness: Math.max(0.3, ann.width),
-            color,
-            opacity,
-            lineCap: LineCapStyle.Round,
-          });
-        }
-      } else if (ann.type === 'arrow') {
-        drawArrow(page, ann, ctx, color);
-      } else if (ann.type === 'text') {
-        drawTextBlock(page, ann, ctx, font, sanitize, color, { opacity });
-      } else if (ann.type === 'comment') {
-        const metrics = measurePdfText(font, sanitize(ann.text), Math.max(2, ann.fontSize));
-        const boxW = metrics.width + COMMENT_PAD * 2;
-        const boxH = metrics.height + COMMENT_PAD * 2;
-        const rect = mapRect(ann.x, ann.y, boxW / ctx.Wd, boxH / ctx.Hd, ctx);
-        page.drawRectangle({
-          ...rect,
-          color: rgb(1, 0.965, 0.77),
-          borderColor: color,
-          borderWidth: 0.8,
-          opacity,
-          borderOpacity: opacity,
-        });
-        drawTextBlock(page, ann, ctx, font, sanitize, rgb(0.24, 0.22, 0.12), { padding: COMMENT_PAD, opacity });
-      } else if (ann.type === 'signature') {
-        await drawSignature(doc, page, ann, ctx, imageCache);
-      }
-    }
-  }
-
-  finalizeDoc(doc, title);
-  return doc.save();
-}
-
-function measurePdfText(font, text, size) {
+export function measurePdfText(font, text, size) {
   const lines = String(text ?? '').split('\n');
   let width = 0;
   for (const line of lines) width = Math.max(width, font.widthOfTextAtSize(line || ' ', size));

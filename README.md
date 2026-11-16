@@ -15,9 +15,15 @@ A local-only PDF editor that ships as **one self-contained HTML file**. Merge, s
 | --- | --- |
 | **Merge** | Add multiple PDFs, reorder them, merge into one download. Page content, sizes, rotations and page-level annotations are preserved; document bookmarks/outlines and interactive form fields may not carry over. |
 | **Split & organise** | Thumbnail view with multi-select. Rotate, reorder and delete pages, then save a copy. Extract selected pages, split every *N* pages, or create one PDF per custom range (`1-3, 4-6, 7`). Multi-file outputs download as a ZIP. |
-| **Sign & mark up** | Highlight, freehand ink, text, comment boxes, rectangles, arrows, black boxes and signatures. Select annotations to move them, resize shapes/signatures, undo/redo, zoom, and export a flattened copy. Signatures can be drawn, typed or uploaded from an image and are remembered in local storage. The document workspace expands to fill the window, with **fit width**, **fit page** and fixed zoom presets. |
+| **Sign & mark up** | Highlight, freehand ink, text, comment boxes, rectangles, arrows, secure redactions and signatures. Select annotations to move them, resize shapes/signatures, undo/redo, zoom, and export. By default annotations are saved as real PDF annotation objects (editable in other PDF apps); an option flattens them into the page. Redacted pages are rasterised to remove the underlying content. Signatures can be drawn, typed or uploaded from an image and are remembered in local storage. The document workspace expands to fill the window, with **fit width**, **fit page** and fixed zoom presets. |
 
 Everything happens client-side with [PDF.js](https://mozilla.github.io/pdf.js/), [pdf-lib](https://pdf-lib.js.org/) and [fflate](https://github.com/101arrowz/fflate). The page makes **no network requests** at runtime.
+
+## Annotation export and redaction
+
+- **Editable annotations (default):** highlights, rectangles, ink, arrows, text/comment boxes and signatures are written as real PDF annotation objects with appearance streams. They appear in other readers’ annotation/comment panels. Signatures are stored as stamp annotations.
+- **Flattened annotations:** uncheck **Editable annotations** in the toolbar to bake annotations into the page content instead.
+- **Secure redaction:** the **Redact** tool rasterises every page that contains a redaction and rebuilds that page on export. The original text and objects on the redacted page are not copied into the output, so text extraction cannot recover the covered content. Links and form fields on redacted pages are flattened, and document outlines may be lost. Redaction is permanent in the exported copy.
 
 ## Run it
 
@@ -89,11 +95,11 @@ If you want the editor as a native web part, wrap the built HTML/JS in an SPFx w
 
 - **Password-protected / encrypted PDFs are not supported.** Remove the password first. The app shows a clear error rather than producing a broken file.
 - **Visual signatures only.** Signatures are flattened images on the page. They are not PAdES/certificate-based digital signatures and do not prove the signer’s identity cryptographically.
-- **Black box is not secure redaction.** It visually covers content but leaves the underlying text and objects in the file. Use a dedicated redaction tool when content must be irrecoverably removed.
+- **Redaction is destructive.** The Redact tool rasterises every page containing a redaction (about 2× page resolution, ~144 DPI) and rebuilds it on export, so the original text and objects on that page are not included in the downloaded file. Covered content is irrecoverable from that copy; links and form fields on redacted pages are flattened, and document outlines may be lost. Keep the original if you may need the source content.
 - **Text annotation font** is the built-in PDF Helvetica (WinAnsi). Western European characters are supported; other scripts are replaced with `?`. Use a drawn/typed/uploaded signature image for names in other scripts.
-- **Annotations are flattened** into the downloaded PDF. They are not added as editable PDF annotation objects, so they will not appear in another app’s annotation panel.
+- **Annotations are real PDF annotation objects by default** (highlight, square, ink, line, free text, stamp/signature), so other PDF apps can list and edit them. Uncheck **Editable annotations** to flatten them instead. Pages with redactions are always rasterised.
 - **Page thumbnails/annotations are not OCR’d**, and the highlight tool does not snap to text.
-- **Existing form fields and annotations** are preserved and rendered, but the app does not edit form fields. Document outlines/bookmarks and interactive form fields may not survive merging or page extraction in every PDF.
+- **Existing form fields and annotations** are preserved and rendered, but the app does not edit form fields or import existing annotations into its editable overlay; annotations already in a PDF are shown as embedded/read-only (use a PDF reader’s annotation panel to edit them). Document outlines/bookmarks and interactive form fields may not survive merging, page extraction or a redacted export.
 - **Very large documents** can take a while to open and render. Rendering is lazy and runs in a worker where the browser allows it.
 - The editor requires a modern browser (current Edge/Chrome/Firefox/Safari). CSS `color-mix()` is used for a few accent colours; browsers older than 2023 may show slightly simplified colours.
 ## Project layout
@@ -109,7 +115,8 @@ src/
   split.js            thumbnails, page operations and split outputs
   markup.js           page viewer, annotation tools, undo/redo, export
   annotation.js       annotation model, canvas rendering, hit testing
-  pdf-ops.js          pdf-lib operations: merge, copy pages, flatten annotations
+  pdf-ops.js          pdf-lib merge/copy operations plus shared page mapping and drawing helpers
+  pdf-export.js       native PDF annotations, appearance streams, secure redaction export
   pdfjs-loader.js     PDF.js setup + inlined worker
   signature.js        draw/type/upload signature dialog
   util.js             shared helpers, downloads, ranges, toasts
@@ -131,7 +138,8 @@ dist/
 
 - merging, reordering and page counts;
 - split rotate → save, undo/redo, reorder, delete/undo, extract, split-every-N and range splitting (including ZIP contents);
-- markup drawing, text, signatures, undo/redo and flattened export;
+- markup drawing, text, signatures, undo/redo, native annotation export and flattened export;
+- secure redaction: rasterised output, no annotation object, no extractable page text, other pages intact;
 - page width/zoom presets (fit width, fit page, fixed percentages, custom zoom);
 - exported annotations appear at the correct place when the output is reopened;
 - annotation placement on pages rotated 90°, 180° and 270°;

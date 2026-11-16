@@ -5,8 +5,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, PDFName } from 'pdf-lib';
 import { unzipSync } from 'fflate';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fixtures = path.join(here, 'fixtures');
@@ -41,9 +42,9 @@ page.on('request', (req) => {
   if (!url.startsWith(baseUrl) && !url.startsWith('blob:') && !url.startsWith('data:')) problems.push(`external request: ${url}`);
 });
 
-async function saveDownload(action) {
+async function saveDownload(action, name = null) {
   const [download] = await Promise.all([page.waitForEvent('download'), action()]);
-  const target = path.join(tmp, download.suggestedFilename() || 'download.pdf');
+  const target = path.join(tmp, name || download.suggestedFilename() || 'download.pdf');
   await download.saveAs(target);
   return target;
 }
@@ -60,6 +61,35 @@ async function pdfInfo(file) {
       rotation: ((p.getRotation().angle % 360) + 360) % 360,
     };
   });
+}
+
+async function annotationSummary(file) {
+  const doc = await loadPdf(file);
+  return doc.getPages().map((p) => {
+    const annots = p.node.Annots();
+    const list = [];
+    if (!annots) return list;
+    for (let i = 0; i < annots.size(); i += 1) {
+      const dict = doc.context.lookup(annots.get(i));
+      if (!dict || !dict.get) continue;
+      const subtype = dict.get(PDFName.of('Subtype'));
+      const contents = dict.get(PDFName.of('Contents'));
+      list.push({
+        subtype: subtype ? subtype.toString() : '',
+        contents: contents ? contents.toString() : '',
+      });
+    }
+    return list;
+  });
+}
+
+async function extractText(file, pageNumber) {
+  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(await readFile(file)), useSystemFonts: true }).promise;
+  const page = await doc.getPage(pageNumber);
+  const content = await page.getTextContent();
+  const text = content.items.map((item) => item.str).join('\n');
+  await doc.destroy();
+  return text;
 }
 function metaText() {
   return page.locator('#markup-meta').textContent();
@@ -277,17 +307,64 @@ await page.mouse.up();
 await page.waitForFunction(() => document.querySelector('#markup-meta').textContent.includes('3 annotations'));
 console.log('✓ markup signature');
 
+// Exercise the remaining native annotation types.
+await page.click('[data-tool="rect"]');
+await page.mouse.move(box.x + box.width * 0.06, box.y + box.height * 0.06);
+await page.mouse.down();
+await page.mouse.move(box.x + box.width * 0.28, box.y + box.height * 0.16, { steps: 6 });
+await page.mouse.up();
+
+await page.click('[data-tool="ink"]');
+await page.mouse.move(box.x + box.width * 0.32, box.y + box.height * 0.08);
+await page.mouse.down();
+await page.mouse.move(box.x + box.width * 0.42, box.y + box.height * 0.14, { steps: 5 });
+await page.mouse.move(box.x + box.width * 0.52, box.y + box.height * 0.07, { steps: 5 });
+await page.mouse.move(box.x + box.width * 0.6, box.y + box.height * 0.15, { steps: 5 });
+await page.mouse.up();
+
+await page.click('[data-tool="arrow"]');
+await page.mouse.move(box.x + box.width * 0.64, box.y + box.height * 0.2);
+await page.mouse.down();
+await page.mouse.move(box.x + box.width * 0.84, box.y + box.height * 0.32, { steps: 6 });
+await page.mouse.up();
+
+await page.click('[data-tool="comment"]');
+await page.mouse.click(box.x + box.width * 0.58, box.y + box.height * 0.55);
+await page.waitForSelector('#text-editor:not([hidden])');
+await page.fill('#text-editor-input', 'Comment note');
+await page.click('#text-editor-ok');
+await page.waitForFunction(() => document.querySelector('#markup-meta').textContent.includes('7 annotations'));
+console.log('✓ markup rectangle/ink/arrow/comment');
+
 const editedPath = await saveDownload(() => page.click('#markup-download'));
 const edited = await loadPdf(editedPath);
 assert.equal(edited.getPageCount(), 3);
+const nativeAnnotations = await annotationSummary(editedPath);
+assert.deepEqual(
+  nativeAnnotations[0].map((ann) => ann.subtype).sort(),
+  ['/FreeText', '/FreeText', '/Highlight', '/Ink', '/Line', '/Square', '/Stamp'].sort(),
+);
+const freeText = nativeAnnotations[0].find((ann) => ann.subtype === '/FreeText' && ann.contents.includes('Reviewed locally'));
+assert.ok(freeText, 'FreeText annotation should keep its text');
+
+await page.uncheck('#editable-annotations');
+const flattenedPath = await saveDownload(() => page.click('#markup-download'), 'alpha-flattened.pdf');
+const flattenedAnnotations = await annotationSummary(flattenedPath);
+assert.equal(flattenedAnnotations[0].length, 0, 'flattened export should not add PDF annotation objects');
+assert.equal((await loadPdf(flattenedPath)).getPageCount(), 3);
+await page.check('#editable-annotations');
+console.log('✓ native annotations + flattened export');
 
 await openMarkupFile(editedPath, { confirm: true });
 await waitForMarkup('alpha-edited.pdf');
+assert.match(await metaText(), /7 embedded PDF annotations · read-only/);
 assert.match(await metaText(), /0 annotations/);
 const highlightPixel = await samplePage(0.4, 0.425);
 assert.ok(highlightPixel[0] > 230 && highlightPixel[1] > 215 && highlightPixel[2] < 210, `highlight pixel was ${highlightPixel}`);
 const signaturePixels = await scanDark(0.55, 0.7, 0.85, 0.8);
 assert.ok(signaturePixels > 20, `expected signature pixels, found ${signaturePixels}`);
+const textPixels = await scanDark(0.18, 0.6, 0.62, 0.7);
+assert.ok(textPixels > 10, `expected native text pixels, found ${textPixels}`);
 console.log('✓ markup export/flatten (highlight + signature)');
 
 // ----------------------------- Rotated pages (90 / 180 / 270) -----------------------------
@@ -333,6 +410,50 @@ for (const [fixture, expectedName] of rotatedFiles) {
   assert.ok(sigPixels > 10, `${fixture} signature pixels: ${sigPixels}`);
   console.log(`✓ rotated page mapping (${fixture})`);
 }
+
+// ----------------------------- Secure redaction -----------------------------
+await openMarkupFile(path.join(fixtures, 'alpha.pdf'));
+await waitForMarkup('alpha.pdf');
+await setPageWidth('fit-page');
+box = await overlayBox(0);
+await page.click('[data-tool="mask"]');
+await page.mouse.move(box.x + box.width * 0.05, box.y + box.height * 0.3);
+await page.mouse.down();
+await page.mouse.move(box.x + box.width * 0.7, box.y + box.height * 0.52, { steps: 8 });
+await page.mouse.up();
+await page.waitForFunction(() => {
+  const text = document.querySelector('#markup-meta').textContent;
+  return text.includes('1 annotation') && text.includes('redaction');
+});
+
+const redactedPromise = page.waitForEvent('download');
+await page.click('#markup-download');
+await page.waitForSelector('#app-confirm');
+assert.match(await page.locator('#app-confirm').textContent(), /permanently removes/i);
+await page.click('#app-confirm-ok');
+const redactedDownload = await redactedPromise;
+const redactedPath = path.join(tmp, 'alpha-redacted.pdf');
+await redactedDownload.saveAs(redactedPath);
+
+const redactedDoc = await loadPdf(redactedPath);
+assert.equal(redactedDoc.getPageCount(), 3);
+assert.equal((await annotationSummary(redactedPath))[0].length, 0, 'redactions must not become annotation objects');
+const redactedResources = redactedDoc.getPage(0).node.Resources();
+assert.ok(redactedResources && redactedResources.lookup(PDFName.of('XObject')), 'redacted page should be an image');
+
+const originalText = await extractText(path.join(fixtures, 'alpha.pdf'), 1);
+assert.match(originalText, /Page 1/);
+const redactedText = await extractText(redactedPath, 1);
+assert.ok(!redactedText.includes('Page 1') && !redactedText.includes('PDF Studio test document'), `redacted text leaked: ${redactedText}`);
+assert.match(await extractText(redactedPath, 2), /Page 2/);
+console.log('✓ secure redaction removes page text');
+
+await openMarkupFile(redactedPath, { confirm: true });
+await waitForMarkup('alpha-redacted.pdf');
+await setPageWidth('fit-page');
+const redactedPixel = await samplePage(0.35, 0.4);
+assert.ok(redactedPixel[0] < 30 && redactedPixel[1] < 30 && redactedPixel[2] < 30, `redaction pixel was ${redactedPixel}`);
+console.log('✓ redacted page renders');
 
 // ----------------------------- Offline file:// -----------------------------
 const offline = await context.newPage();

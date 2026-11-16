@@ -7,7 +7,8 @@ import {
   annotationBounds, createAnnotation, drawAnnotations, hitTestAnnotation,
   moveAnnotation, resizeAnnotation, selectionHandle,
 } from './annotation.js';
-import { flattenAnnotations, inspectPdf } from './pdf-ops.js';
+import { inspectPdf } from './pdf-ops.js';
+import { exportAnnotatedPdf } from './pdf-export.js';
 import { openWithPdfjs } from './pdfjs-loader.js';
 import { openSignatureModal } from './signature.js';
 
@@ -44,6 +45,7 @@ const state = {
   historyIndex: -1,
   pendingSignature: null,
   maskWarned: false,
+  embeddedAnnotations: 0,
   busy: false,
   textTarget: null,
   observer: null,
@@ -97,6 +99,7 @@ export function initMarkup() {
 
   $('#markup-open').addEventListener('click', () => input.click());
   $('#markup-download').addEventListener('click', downloadMarkedUp);
+  $('#editable-annotations').addEventListener('change', updateMeta);
   $('#markup-undo').addEventListener('click', () => stepHistory(-1));
   $('#markup-redo').addEventListener('click', () => stepHistory(1));
   $('#markup-delete').addEventListener('click', deleteSelected);
@@ -181,6 +184,16 @@ async function mountDocument(name, bytes, pdfjsDoc) {
   const pageProxies = [];
   for (let i = 1; i <= count; i += 1) pageProxies.push(await pdfjsDoc.getPage(i));
 
+  let embeddedAnnotations = 0;
+  await Promise.all(pageProxies.map(async (pageProxy) => {
+    try {
+      const annotations = await pageProxy.getAnnotations({ intent: 'display' });
+      embeddedAnnotations += annotations.filter((ann) => !['Link', 'Widget', 'Popup'].includes(ann.subtype)).length;
+    } catch {
+      // Annotation metadata is optional; rendering still works without it.
+    }
+  }));
+
   if (state.pdfjsDoc) {
     state.renderGeneration += 1;
     for (const pv of state.pageViews) {
@@ -201,6 +214,7 @@ async function mountDocument(name, bytes, pdfjsDoc) {
   state.bytes = bytes;
   state.pdfjsDoc = pdfjsDoc;
   state.annotations = {};
+  state.embeddedAnnotations = embeddedAnnotations;
   state.selectedId = null;
   state.selectedPage = null;
   state.draft = null;
@@ -425,6 +439,13 @@ function annotationCount() {
   return Object.values(state.annotations).reduce((sum, list) => sum + list.length, 0);
 }
 
+function countRedactions() {
+  return Object.values(state.annotations).reduce(
+    (sum, list) => sum + list.filter((ann) => ann.type === 'mask').length,
+    0,
+  );
+}
+
 function findSelected() {
   if (!state.selectedId || state.selectedPage == null) return null;
   const list = annotationList(state.selectedPage);
@@ -449,9 +470,22 @@ function updateMeta() {
     chip.textContent = text;
     host.appendChild(chip);
   }
+  const redactions = countRedactions();
+  if (redactions > 0) {
+    const warn = document.createElement('span');
+    warn.className = 'chip warn';
+    warn.textContent = `${redactions} redaction${redactions === 1 ? '' : 's'} · rasterised on download`;
+    host.appendChild(warn);
+  }
+  if (state.embeddedAnnotations > 0) {
+    const embedded = document.createElement('span');
+    embedded.className = 'chip';
+    embedded.textContent = `${state.embeddedAnnotations} embedded PDF annotation${state.embeddedAnnotations === 1 ? '' : 's'} · read-only`;
+    host.appendChild(embedded);
+  }
   const note = document.createElement('span');
   note.className = 'chip';
-  note.textContent = 'Flattened on download';
+  note.textContent = $('#editable-annotations')?.checked === false ? 'Flattened on download' : 'Annotations kept editable';
   host.appendChild(note);
 }
 
@@ -485,7 +519,7 @@ const TOOL_HINTS = {
   comment: 'Click a page to add a comment box. Press Ctrl/Cmd + Enter to add it.',
   rect: 'Drag to draw a rectangle outline.',
   arrow: 'Drag from the tail to the tip of the arrow.',
-  mask: 'Drag a black box over content you want to hide. This is a visual cover, not a secure redaction.',
+  mask: 'Drag a box over content to redact it. Pages with redactions are rasterised on export, permanently removing the covered text and objects (links and forms on that page are flattened).',
   signature: (toolState) => (toolState.pendingSignature
     ? 'Drag a box on the page to place your signature. Drag a larger box to make it bigger.'
     : 'Create a signature first, then drag a box on the page to place it.'),
@@ -520,7 +554,7 @@ function setTool(tool) {
   if (tool === 'signature' && !state.pendingSignature) beginSignature();
   if (tool === 'mask' && !state.maskWarned) {
     state.maskWarned = true;
-    toast('Black box covers content visually but does not remove the text underneath.', 'warn', 6000);
+    toast('Redaction is permanent. Pages with redactions are rasterised on export, removing the covered text and objects.', 'warn', 6200);
   }
   updateToolbarState();
   if (state.pageViews.length) redrawAll();
@@ -1060,9 +1094,55 @@ function onKeyDown(event) {
 
 
 /* ----------------------------- Download ----------------------------- */
+async function buildRedactedPages() {
+  const pages = {};
+  for (const pv of state.pageViews) {
+    const masks = annotationList(pv.index).filter((ann) => ann.type === 'mask');
+    if (!masks.length) continue;
+
+    const baseViewport = pv.page.getViewport({ scale: 1 });
+    let scale = 2;
+    const maxPixels = 16_000_000;
+    if (baseViewport.width * baseViewport.height * scale * scale > maxPixels) {
+      scale = Math.sqrt(maxPixels / (baseViewport.width * baseViewport.height));
+    }
+    scale = Math.max(0.25, scale);
+
+    const viewport = pv.page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(viewport.width));
+    canvas.height = Math.max(1, Math.round(viewport.height));
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await pv.page.render({ canvasContext: ctx, viewport }).promise;
+
+    ctx.fillStyle = '#000000';
+    for (const mask of masks) {
+      const bounds = annotationBounds(mask, pv.baseW, pv.baseH);
+      if (bounds.w <= 0 || bounds.h <= 0) continue;
+      const x = Math.floor(bounds.x * canvas.width) - 1;
+      const y = Math.floor(bounds.y * canvas.height) - 1;
+      const width = Math.ceil(bounds.w * canvas.width) + 2;
+      const height = Math.ceil(bounds.h * canvas.height) + 2;
+      ctx.fillRect(x, y, width, height);
+    }
+
+    pages[pv.index] = {
+      dataUrl: canvas.toDataURL('image/jpeg', 0.95),
+      width: pv.baseW,
+      height: pv.baseH,
+    };
+    canvas.width = 1;
+    canvas.height = 1;
+  }
+  return pages;
+}
+
 async function downloadMarkedUp() {
   if (!state.bytes) return;
   const count = annotationCount();
+  const redactions = countRedactions();
   if (count === 0) {
     const proceed = await confirmDialog('There are no annotations yet. Download an unchanged copy of the PDF?', {
       title: 'Download a copy?',
@@ -1070,13 +1150,35 @@ async function downloadMarkedUp() {
     });
     if (!proceed) return;
   }
+  if (redactions > 0) {
+    const proceed = await confirmDialog(
+      'Redaction permanently removes the covered content. Pages containing redactions are rasterised, so text, links and form fields on those pages are flattened and the original page content is not included in the downloaded file.',
+      { title: 'Apply secure redaction?', okLabel: 'Apply and download' },
+    );
+    if (!proceed) return;
+  }
+
+  const flatten = $('#editable-annotations').checked === false;
   const base = baseName(state.name);
   const filename = `${base}-edited.pdf`;
   await withBusy($('#markup-download'), async () => {
     try {
-      const bytes = await flattenAnnotations(state.bytes, state.annotations, `${base} (edited)`);
+      let redactedPages = {};
+      if (redactions > 0) {
+        toast('Rasterising redacted pages…', 'info', 2400);
+        redactedPages = await buildRedactedPages();
+      }
+      const bytes = await exportAnnotatedPdf(state.bytes, state.annotations, {
+        flatten,
+        redactedPages,
+        title: `${base} (edited)`,
+      });
       downloadBytes(bytes, filename);
-      toast(count ? `Downloaded ${filename} with ${count} annotation${count === 1 ? '' : 's'} flattened in.` : `Downloaded ${filename}.`, 'success', 5200);
+      const redactionNote = redactions > 0
+        ? ` ${redactions} secure redaction${redactions === 1 ? '' : 's'} applied.`
+        : '';
+      const modeNote = flatten ? ' Annotations flattened.' : ' Annotations kept editable.';
+      toast(`Downloaded ${filename} with ${count} annotation${count === 1 ? '' : 's'}.${redactionNote}${modeNote}`, 'success', 6200);
     } catch (err) {
       toast(`Could not create the PDF: ${errorMessage(err)}`, 'error', 7000);
     }
