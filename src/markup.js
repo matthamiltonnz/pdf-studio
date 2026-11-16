@@ -56,6 +56,8 @@ const state = {
   renderGeneration: 0,
   renderQueue: [],
   rendering: 0,
+  onDone: null,
+  finishing: false,
 };
 
 export function initMarkup() {
@@ -101,6 +103,7 @@ export function initMarkup() {
   });
 
   $('#markup-open').addEventListener('click', () => input.click());
+  $('#markup-back').addEventListener('click', finishMarkup);
   $('#markup-download').addEventListener('click', downloadMarkedUp);
   $('#editable-annotations').addEventListener('change', updateMeta);
   $('#markup-undo').addEventListener('click', () => stepHistory(-1));
@@ -155,10 +158,33 @@ export function initMarkup() {
       closeTextEditor();
     }
   });
-
   document.addEventListener('keydown', onKeyDown);
   setTool('select');
 }
+
+
+export async function openMarkupDocument({ name, bytes, page = 1, onDone } = {}) {
+  if (!bytes) return;
+  try {
+    await inspectPdf(bytes);
+    const pdfjsDoc = await openWithPdfjs(bytes);
+    await mountDocument(name || 'document.pdf', bytes, pdfjsDoc);
+    state.onDone = onDone || null;
+    const target = state.pageViews[Math.max(0, page - 1)];
+    if (target) {
+      requestAnimationFrame(() => {
+        const scroll = $('#page-scroll');
+        scroll.scrollTop = Math.max(0, target.wrap.offsetTop - 12);
+      });
+    }
+    window.dispatchEvent(new CustomEvent('pdfstudio:show-tab', { detail: 'markup' }));
+  } catch (err) {
+    toast(`Could not open the page for markup: ${errorMessage(err)}`, 'error', 7000);
+    throw err;
+  }
+}
+
+
 async function openFile(file) {
   if (!file) return;
   if (!/\.pdf$/i.test(file.name || '') && file.type !== 'application/pdf') {
@@ -1176,7 +1202,55 @@ async function buildRedactedPages() {
   return pages;
 }
 
+async function finishMarkup() {
+  if (!state.bytes || !state.onDone || state.finishing) return;
+  const done = state.onDone;
+  const count = annotationCount();
+  const redactions = countRedactions();
+
+  if (redactions > 0) {
+    const proceed = await confirmDialog(
+      'Applying secure redaction will:\n\n'
+      + '• Permanently remove the covered content from the saved PDF.\n'
+      + '• Rasterise each page containing a redaction at about 144 DPI.\n'
+      + '• Remove the original text from those pages, so it is no longer selectable or searchable.\n'
+      + '• Flatten or remove images, links, form fields, existing annotations and other objects on those pages.\n'
+      + '• Possibly drop document outlines/bookmarks.\n\n'
+      + 'This cannot be undone in the saved document.',
+      { title: 'Apply secure redaction?', okLabel: 'Apply and save' },
+    );
+    if (!proceed) return;
+  }
+
+  state.finishing = true;
+  try {
+    let bytes = null;
+    if (count > 0) {
+      await withBusy($('#markup-back'), async () => {
+        let redactedPages = {};
+        if (redactions > 0) {
+          toast('Rasterising redacted pages…', 'info', 2400);
+          redactedPages = await buildRedactedPages();
+        }
+        bytes = await exportAnnotatedPdf(state.bytes, state.annotations, {
+          flatten: $('#editable-annotations').checked === false,
+          redactedPages,
+          title: `${baseName(state.name)} (edited)`,
+        });
+      });
+    }
+    state.onDone = null;
+    await done(bytes);
+  } catch (err) {
+    toast(`Could not save the page markup: ${errorMessage(err)}`, 'error', 7000);
+  } finally {
+    state.finishing = false;
+  }
+}
+
+
 async function downloadMarkedUp() {
+
   if (!state.bytes) return;
   const count = annotationCount();
   const redactions = countRedactions();

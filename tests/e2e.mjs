@@ -105,14 +105,22 @@ async function waitForMarkup(name) {
   }, null, { timeout: 20000 });
 }
 async function openMarkupFile(file, { confirm = false } = {}) {
-  const modal = confirm
-    ? page.waitForSelector('#app-confirm', { timeout: 5000 })
-    : null;
-  await page.setInputFiles('#markup-input', file);
-  if (modal) {
-    await modal;
-    await page.click('#app-confirm-ok');
+  if (await page.locator('#panel-markup').isVisible().catch(() => false)) {
+    await page.click('#markup-back');
+    await page.waitForTimeout(300);
+    if (await page.locator('#app-confirm').isVisible().catch(() => false)) {
+      await page.click('#app-confirm-ok');
+    }
+    await page.waitForSelector('#panel-documents:not([hidden])', { timeout: 20000 });
   }
+  if (await page.locator('#split-workspace').isVisible().catch(() => false)) {
+    await page.click('#split-close');
+    await page.waitForSelector('#split-drop:not([hidden])', { timeout: 20000 });
+  }
+  await page.setInputFiles('#split-input', file);
+  await page.waitForFunction(() => document.querySelectorAll('.thumb-edit').length > 0, null, { timeout: 20000 });
+  await page.locator('.thumb-edit').first().click();
+  await page.waitForSelector('#panel-markup:not([hidden])', { timeout: 20000 });
 }
 
 async function setPageWidth(value) {
@@ -153,27 +161,34 @@ async function scanDark(x0, y0, x1, y1) {
     return dark;
   }, [x0, y0, x1, y1]);
 }
-// ----------------------------- Merge -----------------------------
+// ----------------------------- Documents / merge -----------------------------
 await page.goto(`${baseUrl}/pdf-studio.html`, { waitUntil: 'load' });
-assert.equal(await page.locator('.tab').count(), 4);
-await page.setInputFiles('#merge-input', [path.join(fixtures, 'alpha.pdf'), path.join(fixtures, 'beta.pdf')]);
-await page.waitForFunction(() => document.querySelectorAll('.file-item').length === 2);
-assert.match(await page.locator('#merge-summary').textContent(), /2 files · 5 pages/);
+assert.equal(await page.locator('.tab').count(), 2);
+assert.equal(await page.locator('#panel-documents').isVisible(), true);
+await page.setInputFiles('#split-input', [path.join(fixtures, 'alpha.pdf'), path.join(fixtures, 'beta.pdf')]);
+await page.waitForFunction(() => document.querySelectorAll('.thumb').length === 5, null, { timeout: 20000 });
+assert.match(await page.locator('#split-file').textContent(), /5 pages/);
 
-// Reorder and put it back.
-await page.locator('.file-item').first().locator('button[data-action="down"]').click();
-assert.match(await page.locator('.file-item').first().textContent(), /beta\.pdf/);
-await page.locator('.file-item').first().locator('button[data-action="down"]').click();
-assert.match(await page.locator('.file-item').first().textContent(), /alpha\.pdf/);
-
-const mergedPath = await saveDownload(() => page.click('#merge-go'));
+// Reorder a page and download the merged document.
+await page.locator('.thumb').first().click();
+await page.click('#split-move-right');
+const mergedPath = await saveDownload(() => page.click('#split-apply'));
 let info = await pdfInfo(mergedPath);
 assert.equal(info.length, 5);
-assert.deepEqual(info.map((p) => p.width), [400, 420, 440, 400, 400]);
-console.log('✓ merge');
+assert.deepEqual(info.map((p) => p.width), [420, 400, 440, 400, 400]);
+console.log('✓ documents merge + reorder');
+
+// Add another PDF to the existing document.
+const chooserPromise = page.waitForEvent('filechooser');
+await page.click('#split-add');
+const chooser = await chooserPromise;
+await chooser.setFiles(path.join(fixtures, 'beta.pdf'));
+await page.waitForFunction(() => document.querySelectorAll('.thumb').length === 7, null, { timeout: 20000 });
+assert.match(await page.locator('#split-file').textContent(), /7 pages/);
+console.log('✓ documents add more PDFs');
 
 // ----------------------------- Split -----------------------------
-await page.click('[data-tab="split"]');
+await page.goto(`${baseUrl}/pdf-studio.html`, { waitUntil: 'load' });
 await page.setInputFiles('#split-input', path.join(fixtures, 'alpha.pdf'));
 await page.waitForFunction(() => document.querySelectorAll('.thumb').length === 3, null, { timeout: 20000 });
 await page.waitForFunction(() => document.querySelectorAll('.thumb canvas:not([hidden])').length > 0, null, { timeout: 20000 });
@@ -247,7 +262,6 @@ for (const bytes of Object.values(rangeEntries)) rangeCounts.push((await PDFDocu
 assert.deepEqual(rangeCounts.sort(), [1, 2]);
 console.log('✓ split by ranges');
 // ----------------------------- Markup -----------------------------
-await page.click('[data-tab="markup"]');
 await openMarkupFile(path.join(fixtures, 'alpha.pdf'));
 await waitForMarkup('alpha.pdf');
 assert.equal(await page.locator('.page-wrap').count(), 3);
@@ -308,11 +322,14 @@ await page.waitForFunction(() => document.querySelector('#markup-meta').textCont
 console.log('✓ markup signature');
 
 // Exercise the remaining native annotation types.
+await page.evaluate(() => { document.querySelector('#page-scroll').scrollTop = 0; });
+box = await overlayBox(0);
 await page.click('[data-tool="rect"]');
 await page.mouse.move(box.x + box.width * 0.06, box.y + box.height * 0.06);
 await page.mouse.down();
 await page.mouse.move(box.x + box.width * 0.28, box.y + box.height * 0.16, { steps: 6 });
 await page.mouse.up();
+await page.waitForFunction(() => document.querySelector('#markup-meta').textContent.includes('4 annotations'));
 
 await page.click('[data-tool="ink"]');
 await page.mouse.move(box.x + box.width * 0.32, box.y + box.height * 0.08);
@@ -321,18 +338,21 @@ await page.mouse.move(box.x + box.width * 0.42, box.y + box.height * 0.14, { ste
 await page.mouse.move(box.x + box.width * 0.52, box.y + box.height * 0.07, { steps: 5 });
 await page.mouse.move(box.x + box.width * 0.6, box.y + box.height * 0.15, { steps: 5 });
 await page.mouse.up();
+await page.waitForFunction(() => document.querySelector('#markup-meta').textContent.includes('5 annotations'));
 
 await page.click('[data-tool="arrow"]');
 await page.mouse.move(box.x + box.width * 0.64, box.y + box.height * 0.2);
 await page.mouse.down();
 await page.mouse.move(box.x + box.width * 0.84, box.y + box.height * 0.32, { steps: 6 });
 await page.mouse.up();
+await page.waitForFunction(() => document.querySelector('#markup-meta').textContent.includes('6 annotations'));
 
 await page.click('[data-tool="comment"]');
 await page.mouse.click(box.x + box.width * 0.58, box.y + box.height * 0.55);
 await page.waitForSelector('#text-editor:not([hidden])');
 await page.fill('#text-editor-input', 'Comment note');
 await page.click('#text-editor-ok');
+await page.waitForSelector('#text-editor', { state: 'hidden' });
 await page.waitForFunction(() => document.querySelector('#markup-meta').textContent.includes('7 annotations'));
 console.log('✓ markup rectangle/ink/arrow/comment');
 
@@ -499,13 +519,44 @@ const blackboxPixel = await samplePage(0.35, 0.4);
 assert.ok(blackboxPixel[0] > 150 && blackboxPixel[1] < 100 && blackboxPixel[2] < 120, `box pixel was ${blackboxPixel}`);
 console.log('✓ coloured box covers visually while text remains');
 
+// ----------------------------- Save & return to documents -----------------------------
+await openMarkupFile(path.join(fixtures, 'alpha.pdf'));
+await waitForMarkup('alpha.pdf');
+await setPageWidth('fit-page');
+box = await overlayBox(0);
+await page.click('[data-tool="highlight"]');
+await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.35);
+await page.mouse.down();
+await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.45, { steps: 8 });
+await page.mouse.up();
+await page.waitForFunction(() => document.querySelector('#markup-meta').textContent.includes('1 annotation'));
+await page.click('#markup-back');
+await page.waitForSelector('#panel-documents:not([hidden])', { timeout: 20000 });
+await page.waitForFunction(() => document.querySelectorAll('.thumb').length === 3, null, { timeout: 20000 });
+const returnedPath = await saveDownload(() => page.click('#split-apply'));
+const returnedAnnotations = await annotationSummary(returnedPath);
+assert.ok(
+  returnedAnnotations[0].some((ann) => ann.subtype === '/Highlight'),
+  'markup saved from the editor should survive returning to documents',
+);
+console.log('✓ save markup and return to documents');
+
+
+// ----------------------------- Open a specific page -----------------------------
+await page.locator('.thumb-edit').nth(1).click();
+await waitForMarkup('alpha.pdf');
+await page.waitForFunction(() => document.querySelector('#page-scroll').scrollTop > 0, null, { timeout: 10000 });
+console.log('✓ mark up opens the selected page');
+await page.click('#markup-back');
+await page.waitForSelector('#panel-documents:not([hidden])', { timeout: 20000 });
+
+
 // ----------------------------- Offline file:// -----------------------------
 const offline = await context.newPage();
 const offlineProblems = [];
 offline.on('console', (msg) => { if (msg.type() === 'error') offlineProblems.push(`console: ${msg.text()}`); });
 offline.on('pageerror', (err) => offlineProblems.push(`pageerror: ${err.message}`));
 await offline.goto(pathToFileURL(path.join(here, '..', 'dist', 'pdf-studio.html')).href, { waitUntil: 'load' });
-await offline.click('[data-tab="split"]');
 await offline.setInputFiles('#split-input', path.join(fixtures, 'alpha.pdf'));
 await offline.waitForFunction(() => document.querySelectorAll('.thumb').length === 3, null, { timeout: 20000 });
 await offline.waitForFunction(() => document.querySelectorAll('.thumb canvas:not([hidden])').length > 0, null, { timeout: 20000 });

@@ -1,12 +1,11 @@
 import { $$, toast } from './util.js';
-import { initMerge } from './merge.js';
-import { initSplit } from './split.js';
+import { initDocuments } from './documents.js';
 import { initMarkup } from './markup.js';
 
-const TABS = ['merge', 'split', 'markup', 'help'];
+const TABS = ['documents', 'help'];
 
 function showTab(name, { focus = false, updateHash = true } = {}) {
-  if (!TABS.includes(name)) name = 'merge';
+  if (name !== 'markup' && !TABS.includes(name)) name = 'documents';
   $$('.tab').forEach((tab) => {
     const active = tab.dataset.tab === name;
     tab.classList.toggle('is-active', active);
@@ -30,18 +29,36 @@ function showTab(name, { focus = false, updateHash = true } = {}) {
 
 function initTabs() {
   $$('.tab').forEach((tab) => {
-    tab.addEventListener('click', () => showTab(tab.dataset.tab));
+    tab.addEventListener('click', () => {
+      const markupPanel = document.getElementById('panel-markup');
+      const editing = Boolean(markupPanel && !markupPanel.hidden && markupPanel.classList.contains('is-open'));
+      if (editing) {
+        if (tab.dataset.tab === 'documents') {
+          document.getElementById('markup-back').click();
+        } else {
+          toast('Use ← Documents to save your markup and return first.', 'warn');
+        }
+        return;
+      }
+      showTab(tab.dataset.tab);
+    });
     tab.addEventListener('keydown', (event) => {
       if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
       event.preventDefault();
+      const markupPanel = document.getElementById('panel-markup');
+      if (markupPanel && !markupPanel.hidden && markupPanel.classList.contains('is-open')) return;
       const current = TABS.indexOf(tab.dataset.tab);
       const direction = event.key === 'ArrowRight' ? 1 : -1;
       const next = (current + direction + TABS.length) % TABS.length;
       showTab(TABS[next], { focus: true });
     });
   });
+  window.addEventListener('pdfstudio:show-tab', (event) => {
+    showTab(event.detail, { updateHash: event.detail !== 'markup' });
+  });
+
   const initial = location.hash.replace('#', '');
-  showTab(TABS.includes(initial) ? initial : 'merge', { updateHash: false });
+  showTab(TABS.includes(initial) ? initial : 'documents', { updateHash: false });
   window.addEventListener('hashchange', () => {
     const name = location.hash.replace('#', '');
     if (TABS.includes(name)) showTab(name, { updateHash: false });
@@ -50,8 +67,7 @@ function initTabs() {
 
 function init() {
   initTabs();
-  initMerge();
-  initSplit();
+  initDocuments();
   initMarkup();
 
   window.addEventListener('unhandledrejection', (event) => {

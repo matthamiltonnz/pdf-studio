@@ -1,6 +1,6 @@
 # PDF Studio
 
-A local-only PDF editor that ships as **one self-contained HTML file**. Merge, split, sign and mark up PDFs entirely in the browser — no server, no uploads, no accounts.
+A local-only PDF editor that ships as **one self-contained HTML file**. Organise, mark up, merge and split PDFs entirely in the browser — no server, no uploads, no accounts.
 
 **Live:** https://matthamiltonnz.github.io/pdf-studio/  
 **Repository:** https://github.com/matthamiltonnz/pdf-studio
@@ -13,9 +13,9 @@ A local-only PDF editor that ships as **one self-contained HTML file**. Merge, s
 
 | Tool | What it does |
 | --- | --- |
-| **Merge** | Add multiple PDFs, reorder them, merge into one download. Page content, sizes, rotations and page-level annotations are preserved; document bookmarks/outlines and interactive form fields may not carry over. |
-| **Split & organise** | Thumbnail view with multi-select. Rotate, reorder and delete pages, then save a copy. Extract selected pages, split every *N* pages, or create one PDF per custom range (`1-3, 4-6, 7`). Multi-file outputs download as a ZIP. |
-| **Sign & mark up** | Highlight, freehand ink, text, comment boxes, rectangles, arrows, visual boxes, secure redactions and signatures. Select annotations to move them, resize shapes/signatures, undo/redo, zoom, and export. By default annotations are saved as real PDF annotation objects (editable in other PDF apps); an option flattens them into the page. Redacted pages are rasterised to remove the underlying content. Signatures can be drawn, typed or uploaded from an image and are remembered in local storage. The document workspace expands to fill the window, with **fit width**, **fit page** and fixed zoom presets. |
+| **Documents** | Add one or more PDFs into a single page tray. Files are merged automatically, and **Add PDFs** appends more at any time. |
+| **Organise & export** | Thumbnail view with multi-select. Rotate, reorder and delete pages. Open any page with **Mark up**, then download the whole document, extract selected pages, split every *N* pages, or create one PDF per range (`1-3, 4-6, 7`). Multi-file outputs are zipped. |
+| **Mark up a page** | Highlight, freehand ink, text, comment boxes, rectangles, arrows, visual boxes, secure redactions and signatures. Select annotations to move/resize, undo/redo, zoom and export. **← Documents** saves the markup back to the page tray. |
 
 Everything happens client-side with [PDF.js](https://mozilla.github.io/pdf.js/), [pdf-lib](https://pdf-lib.js.org/) and [fflate](https://github.com/101arrowz/fflate). The page makes **no network requests** at runtime.
 
@@ -111,12 +111,11 @@ If you want the editor as a native web part, wrap the built HTML/JS in an SPFx w
 .github/workflows/
   deploy.yml          GitHub Pages build + deploy on pushes to main
 src/
-  index.html          markup for the three tools, help and dialogs
+  index.html          Documents workspace, markup editor, help and dialogs
   styles.css          light/dark responsive UI
-  main.js             tab shell
-  merge.js            merge workflow
-  split.js            thumbnails, page operations and split outputs
-  markup.js           page viewer, annotation tools, undo/redo, export
+  main.js             app shell and tab routing
+  documents.js        import/merge, page tray, launch markup, split outputs
+    markup.js           page viewer, annotation tools, undo/redo, export
   annotation.js       annotation model, canvas rendering, hit testing
   pdf-ops.js          pdf-lib merge/copy operations plus shared page mapping and drawing helpers
   pdf-export.js       native PDF annotations, appearance streams, secure redaction export
@@ -139,7 +138,8 @@ dist/
 
 `npm test` starts a local static server, launches headless Chromium, and checks:
 
-- merging, reordering and page counts;
+- adding and merging PDFs, appending more files, reordering and page counts;
+- opening **Mark up** from a specific page and saving annotations back to the page tray;
 - split rotate → save, undo/redo, reorder, delete/undo, extract, split-every-N and range splitting (including ZIP contents);
 - markup drawing, text, signatures, undo/redo, native annotation export and flattened export;
 - secure redaction: rasterised output, no annotation object, no extractable page text, other pages intact;

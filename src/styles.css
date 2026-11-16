@@ -502,6 +502,7 @@ main { flex: 1; width: 100%; padding: clamp(1.1rem, 3vw, 2.4rem); }
 .thumb .thumb-num { font-weight: 700; color: var(--ink-2); }
 .thumb .thumb-rot { font-size: .68rem; }
 .thumb .thumb-drop { position: absolute; inset: 0; border-radius: 9px; pointer-events: none; }
+.thumb .thumb-edit { width: 100%; margin-top: .3rem; }
 .thumb.is-dragover { border-color: var(--accent); }
 .thumb.drag-src { opacity: .45; }
 /* ----------------------------- Markup ----------------------------- */
@@ -808,6 +809,7 @@ body.tool-text .page canvas.overlay, body.tool-comment .page canvas.overlay { cu
 .shortcut-list { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: .45rem .8rem; }
 .shortcut-list li { margin: 0; display: flex; align-items: center; gap: .4rem; }
 .about-card { margin-top: 1rem; font-size: .82rem; color: var(--muted); }
+.markup-back { align-self: center; white-space: nowrap; }
 
 /* Full-height document workspace once a PDF is open */
 #panel-markup.is-open { max-width: none; }

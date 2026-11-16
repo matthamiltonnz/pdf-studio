@@ -2,10 +2,22 @@
 import {
   PDFDocument, PDFDict, PDFName, PDFString, StandardFonts, degrees, rgb, LineCapStyle,
 } from 'pdf-lib';
+import PDFObjectCopier from 'pdf-lib/cjs/core/PDFObjectCopier';
 import { LINE_HEIGHT } from './annotation.js';
 import { clamp, hexToRgb01 } from './util.js';
 
 const PDF_MAGIC = /%PDF-/;
+
+function copyPageAnnotations(sourcePage, targetPage, sourceDoc, targetDoc) {
+  const annots = sourcePage.node.Annots();
+  if (!annots) return;
+  try {
+    const copier = PDFObjectCopier.for(sourceDoc.context, targetDoc.context);
+    targetPage.node.set(PDFName.of('Annots'), copier.copy(annots));
+  } catch {
+    // Keep the page even if an unusual annotation object cannot be copied.
+  }
+}
 
 export async function inspectPdf(bytes) {
   if (!PDF_MAGIC.test(new TextDecoder('latin1').decode(bytes.slice(0, 1024)))) {
@@ -37,7 +49,10 @@ export async function mergePdfBuffers(entries, title) {
   for (const entry of entries) {
     const src = await PDFDocument.load(entry.bytes.slice(), { updateMetadata: false });
     const pages = await out.copyPages(src, src.getPageIndices());
-    for (const page of pages) out.addPage(page);
+    pages.forEach((page, index) => {
+      copyPageAnnotations(src.getPage(index), page, src, out);
+      out.addPage(page);
+    });
   }
   finalizeDoc(out, title);
   return out.save();
@@ -46,8 +61,10 @@ export async function mergePdfBuffers(entries, title) {
 export async function buildPdfFromPages(sourceBytes, pageRefs, title) {
   const src = await PDFDocument.load(sourceBytes.slice(), { updateMetadata: false });
   const out = await PDFDocument.create();
-  const copied = await out.copyPages(src, pageRefs.map((ref) => ref.src));
+  const sourceIndices = pageRefs.map((ref) => ref.src);
+  const copied = await out.copyPages(src, sourceIndices);
   copied.forEach((page, index) => {
+    copyPageAnnotations(src.getPage(sourceIndices[index]), page, src, out);
     page.setRotation(degrees(normalizeRotation(pageRefs[index].rotation)));
     out.addPage(page);
   });
@@ -66,8 +83,10 @@ export async function buildPdfGroups(sourceBytes, groups, titleBase) {
   for (let index = 0; index < groups.length; index += 1) {
     const group = groups[index];
     const doc = await PDFDocument.create();
-    const copied = await doc.copyPages(src, group.map((ref) => ref.src));
+    const sourceIndices = group.map((ref) => ref.src);
+    const copied = await doc.copyPages(src, sourceIndices);
     copied.forEach((page, i) => {
+      copyPageAnnotations(src.getPage(sourceIndices[i]), page, src, doc);
       page.setRotation(degrees(normalizeRotation(group[i].rotation)));
       doc.addPage(page);
     });

@@ -1,8 +1,9 @@
-/* Split & organise: thumbnails, page selection, rotation, reordering and outputs. */
+/* Documents: import/merge PDFs, organise pages, launch page markup and split outputs. */
 import { zipSync } from 'fflate';
 import { $, baseName, downloadBytes, errorMessage, formatBytes, isPdfFile, parsePageRanges, readFileBytes, toast, withBusy } from './util.js';
-import { buildPdfFromPages, buildPdfGroups, getPageRotations, inspectPdf } from './pdf-ops.js';
+import { buildPdfFromPages, buildPdfGroups, getPageRotations, inspectPdf, mergePdfBuffers } from './pdf-ops.js';
 import { openWithPdfjs, renderPdfPageToCanvas } from './pdfjs-loader.js';
+import { openMarkupDocument } from './markup.js';
 
 const state = {
   name: '',
@@ -22,7 +23,7 @@ const state = {
   initialized: false,
 };
 
-export function initSplit() {
+export function initDocuments() {
   if (state.initialized) return;
   state.initialized = true;
 
@@ -54,15 +55,17 @@ export function initSplit() {
     event.preventDefault();
     dragDepth = 0;
     drop.classList.remove('is-dragover');
-    const file = event.dataTransfer?.files?.[0];
-    if (file) await openFile(file);
+    const files = event.dataTransfer?.files;
+    if (files && files.length) await addFiles(files);
   });
 
   input.addEventListener('change', async () => {
-    const file = input.files && input.files[0];
+    const files = Array.from(input.files || []);
     input.value = '';
-    if (file) await openFile(file);
+    if (files.length) await addFiles(files);
   });
+
+  $('#split-add').addEventListener('click', () => input.click());
 
   $('#split-close').addEventListener('click', closeFile);
   $('#split-reset').addEventListener('click', resetPages);
@@ -112,57 +115,114 @@ export function initSplit() {
     }
   }, { rootMargin: '500px 0px' });
 }
-async function openFile(file) {
-  if (!isPdfFile(file)) {
-    toast('Please choose a PDF file.', 'warn');
+async function addFiles(files) {
+  const incoming = Array.from(files || []).filter(isPdfFile);
+  if (!incoming.length) {
+    toast('Please choose PDF files.', 'warn');
     return;
   }
   try {
-    const bytes = await readFileBytes(file);
-    const info = await inspectPdf(bytes);
-    const rotations = await getPageRotations(bytes);
-    const pdfjsDoc = await openWithPdfjs(bytes);
+    const entries = await Promise.all(incoming.map(async (file) => ({
+      bytes: await readFileBytes(file),
+      name: file.name || 'document.pdf',
+    })));
 
-    if (state.pdfjsDoc) {
-      try { state.pdfjsDoc.destroy(); } catch { /* ignore */ }
+    let bytes;
+    let name;
+    if (state.bytes && state.pages.length) {
+      const current = await buildPdfFromPages(state.bytes, state.pages, baseName(state.name || 'document'));
+      bytes = await mergePdfBuffers([{ bytes: current }, ...entries], baseName(state.name || 'document'));
+      name = `${baseName(state.name || 'document')} + ${incoming.length} file${incoming.length === 1 ? '' : 's'}.pdf`;
+    } else if (entries.length === 1) {
+      bytes = entries[0].bytes;
+      name = entries[0].name;
+    } else {
+      bytes = await mergePdfBuffers(entries, 'merged');
+      name = `${baseName(entries[0].name)} + ${entries.length - 1} more.pdf`;
     }
-    state.name = file.name || 'document.pdf';
-    state.bytes = bytes;
-    state.pageCount = info.pageCount;
-    state.pdfjsDoc = pdfjsDoc;
-    state.baseRotations = rotations;
-    state.pages = rotations.map((rotation, index) => ({
-      uid: `p${index}_${Math.random().toString(36).slice(2, 7)}`,
-      src: index,
-      rotation,
-    }));
-    state.selected = new Set();
-    state.lastClicked = null;
-    state.history = [];
-    state.historyIndex = -1;
-    state.nodeByUid = new Map();
-    recordHistory();
 
-    $('#split-file').textContent = '';
-    const name = document.createElement('span');
-    name.className = 'name';
-    name.textContent = state.name;
-    name.title = state.name;
-    const count = document.createElement('span');
-    count.className = 'count';
-    count.textContent = `${state.pageCount} page${state.pageCount === 1 ? '' : 's'} · ${formatBytes(bytes.byteLength)}`;
-    $('#split-file').append(name, count);
-
-    $('#split-drop').hidden = true;
-    $('#split-workspace').hidden = false;
-    $('#split-ranges').value = '';
-    renderGrid();
-    refreshSelection();
-    toast(`Opened ${state.name}.`, 'success');
+    await loadDocument(name, bytes);
+    toast(
+      incoming.length === 1 ? `Added ${incoming[0].name}.` : `Added ${incoming.length} PDFs.`,
+      'success',
+    );
   } catch (err) {
-    toast(`Could not open the PDF: ${errorMessage(err)}`, 'error', 7000);
+    toast(`Could not add the PDF: ${errorMessage(err)}`, 'error', 7000);
   }
 }
+
+async function loadDocument(name, bytes) {
+  const info = await inspectPdf(bytes);
+  const rotations = await getPageRotations(bytes);
+  const pdfjsDoc = await openWithPdfjs(bytes);
+
+  if (state.pdfjsDoc) {
+    try { state.pdfjsDoc.destroy(); } catch { /* ignore */ }
+  }
+  state.name = name;
+  state.bytes = bytes;
+  state.pageCount = info.pageCount;
+  state.pdfjsDoc = pdfjsDoc;
+  state.baseRotations = rotations;
+  state.pages = rotations.map((rotation, index) => ({
+    uid: `p${index}_${Math.random().toString(36).slice(2, 7)}`,
+    src: index,
+    rotation,
+  }));
+  state.selected = new Set();
+  state.lastClicked = null;
+  state.history = [];
+  state.historyIndex = -1;
+  state.nodeByUid = new Map();
+  recordHistory();
+
+  $('#split-file').textContent = '';
+  const nameEl = document.createElement('span');
+  nameEl.className = 'name';
+  nameEl.textContent = state.name;
+  nameEl.title = state.name;
+  const count = document.createElement('span');
+  count.className = 'count';
+  count.textContent = `${state.pageCount} page${state.pageCount === 1 ? '' : 's'} · ${formatBytes(bytes.byteLength)}`;
+  $('#split-file').append(nameEl, count);
+
+  $('#split-drop').hidden = true;
+  $('#split-workspace').hidden = false;
+  $('#split-ranges').value = '';
+  renderGrid();
+  refreshSelection();
+}
+
+
+async function openEditor(index, button) {
+  if (!state.bytes || !state.pages.length) return;
+  const page = state.pages[index];
+  if (!page) return;
+  const base = baseName(state.name);
+  try {
+    await withBusy(button, async () => {
+      const bytes = await buildPdfFromPages(state.bytes, state.pages, base);
+      await openMarkupDocument({
+        name: `${base}.pdf`,
+        bytes,
+        page: index + 1,
+        onDone: async (annotated) => {
+          try {
+            if (annotated) {
+              await loadDocument(state.name, annotated);
+              toast('Markup saved to the document.', 'success');
+            }
+          } finally {
+            window.dispatchEvent(new CustomEvent('pdfstudio:show-tab', { detail: 'documents' }));
+          }
+        },
+      });
+    });
+  } catch (err) {
+    toast(`Could not open the page for markup: ${errorMessage(err)}`, 'error', 7000);
+  }
+}
+
 
 function closeFile() {
   if (state.pdfjsDoc) {
@@ -240,7 +300,17 @@ function renderGrid() {
     rot.textContent = page.rotation ? `${page.rotation}°` : '';
     foot.append(num, rot);
 
-    item.append(box, foot);
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'btn ghost small thumb-edit';
+    edit.textContent = 'Mark up';
+    edit.title = 'Open this page in the markup editor';
+    edit.addEventListener('click', (event) => {
+      event.stopPropagation();
+      openEditor(index, edit);
+    });
+
+    item.append(box, foot, edit);
     item._canvas = canvas;
     item._placeholder = placeholder;
     item._rotation = null;
