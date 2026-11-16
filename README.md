@@ -2,7 +2,10 @@
 
 A local-only PDF editor that ships as **one self-contained HTML file**. Merge, split, sign and mark up PDFs entirely in the browser — no server, no uploads, no accounts.
 
-**Deliverable:** [`dist/pdf-studio.html`](dist/pdf-studio.html) (≈2.3 MB, all libraries and the PDF.js worker inlined).
+**Live:** https://matthamiltonnz.github.io/pdf-studio/  
+**Repository:** https://github.com/matthamiltonnz/pdf-studio
+
+**Deliverable:** [`dist/pdf-studio.html`](dist/pdf-studio.html) (≈2.4 MB, all libraries and the PDF.js worker inlined).
 
 ---
 
@@ -40,6 +43,12 @@ Other scripts:
 ```bash
 npm run fixtures   # regenerate the small PDFs used by the tests
 ```
+
+## Deployment
+
+Pushes to `main` run [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml), build the single-file app with `npm run build`, and publish `dist/` to GitHub Pages. The workflow can also be started manually from the Actions tab.
+
+Live URL: **https://matthamiltonnz.github.io/pdf-studio/**
 
 ## Hosting in Microsoft 365 / SharePoint
 
@@ -90,6 +99,8 @@ If you want the editor as a native web part, wrap the built HTML/JS in an SPFx w
 ## Project layout
 
 ```
+.github/workflows/
+  deploy.yml          GitHub Pages build + deploy on pushes to main
 src/
   index.html          markup for the three tools, help and dialogs
   styles.css          light/dark responsive UI
