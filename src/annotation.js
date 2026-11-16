@@ -136,7 +136,7 @@ export function drawAnnotation(ctx, ann, Wd, Hd, scale, onImageLoad) {
     ctx.strokeStyle = ann.color;
     ctx.lineWidth = Math.max(1, ann.width * scale);
     ctx.strokeRect(px(ann.x), py(ann.y), px(ann.w), py(ann.h));
-  } else if (ann.type === 'mask') {
+  } else if (ann.type === 'mask' || ann.type === 'blackbox') {
     ctx.fillStyle = ann.color || '#111827';
     ctx.fillRect(px(ann.x), py(ann.y), px(ann.w), py(ann.h));
   } else if (ann.type === 'ink') {

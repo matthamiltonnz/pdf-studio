@@ -474,6 +474,14 @@ await page.mouse.move(box.x + box.width * 0.05, box.y + box.height * 0.3);
 await page.mouse.down();
 await page.mouse.move(box.x + box.width * 0.7, box.y + box.height * 0.52, { steps: 8 });
 await page.mouse.up();
+const overlayPixel = await page.evaluate(() => {
+  const canvas = document.querySelector('.page-wrap canvas.overlay');
+  const ctx = canvas.getContext('2d');
+  return Array.from(ctx.getImageData(Math.floor(canvas.width * 0.35), Math.floor(canvas.height * 0.4), 1, 1).data);
+});
+assert.ok(overlayPixel[0] > 150 && overlayPixel[1] < 100 && overlayPixel[2] < 120, `overlay box pixel was ${overlayPixel}`);
+console.log('✓ box paints a solid colour in the editor');
+
 await page.waitForFunction(() => document.querySelector('#markup-meta').textContent.includes('text remains available'));
 const blackboxToast = await page.locator('#toasts').textContent();
 assert.match(blackboxToast, /text underneath is still in the PDF/i);
